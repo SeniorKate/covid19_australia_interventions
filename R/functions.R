@@ -5481,7 +5481,7 @@ get_qld_summary_data <- function(file = NULL,
       ungroup() %>%
       mutate(state = "QLD", test_type = "RAT") -> qld_legacy_rat
     
-    file %>% read_xlsx(sheet = 3) %>% 
+    file %>% read_xlsx(sheet = 1) %>% 
       mutate(date = as.Date(CollectionDate, format =  "%d/%m/%Y")) %>% 
       group_by(date) %>%
       mutate(cases = sum(N)) %>%
@@ -5496,11 +5496,12 @@ get_qld_summary_data <- function(file = NULL,
   } else {
     file %>% read_xlsx(sheet = 3) %>% 
       rename_with(~gsub(" ", "", .x, fixed = TRUE)) %>% 
-      mutate(date = as.Date(CollectionDate, format =  "%d/%m/%Y"),
+      mutate(CollectionDate = as.Date(CollectionDate, format =  "%d/%m/%Y"),
              test_type = case_when(
                ResolutionStatus  == "Confirmed" ~ "PCR",
                ResolutionStatus %in% c("Probable") ~ "RAT"
              )) %>% 
+      mutate(date=as.Date(NotificationDate, format =  "%d/%m/%Y"))%>%
       group_by(date,test_type) %>%
       mutate(cases = sum(N)) %>%
       filter(date >= "2022-01-06") %>%
@@ -7081,7 +7082,7 @@ reff_plotting <- function(
                   projection_at = projection_date,
                   ylim = NULL,
                   ybreaks = c(-5, 5),
-                  plot_voc = TRUE) + 
+                  plot_voc = FALSE) + 
     ggtitle(label = "Log ratio of local-to-local transmission and transmission potential",
             subtitle = expression(Log~ratio~of~R["eff"]~and~transmission~potential)) +
     ylab("Deviation")
@@ -7116,7 +7117,7 @@ reff_plotting <- function(
              projection_at = projection_date,
              ylim = c(0, 8),
              intervention_at = interventions(),
-             plot_voc = TRUE,
+             plot_voc = FALSE,
              plot_vax = TRUE
   ) + 
     ggtitle(label = "Impact of vaccination",
@@ -7136,7 +7137,7 @@ reff_plotting <- function(
     intervention_at = interventions(),
     base_colour = green,
     projection_at = projection_date,
-    plot_voc = TRUE,
+    plot_voc = FALSE,
     plot_vax = TRUE
   ) + 
     ggtitle(label = "Impact of social distancing only",
@@ -7153,7 +7154,7 @@ reff_plotting <- function(
              multistate = TRUE,
              base_colour = purple,
              projection_at = projection_date,
-             plot_voc = TRUE) + 
+             plot_voc = FALSE) + 
     ggtitle(label = "Impact of micro-distancing",
             subtitle = expression(R["eff"]~"if"~only~"micro-distancing"~behaviour~had~changed)) +
     ylab(expression(R["eff"]~component))
@@ -7168,7 +7169,7 @@ reff_plotting <- function(
              multistate = TRUE,
              base_colour = blue,
              projection_at = projection_date,
-             plot_voc = TRUE) + 
+             plot_voc = FALSE) + 
     ggtitle(label = "Impact of macro-distancing",
             subtitle = expression(R["eff"]~"if"~only~"macro-distancing"~behaviour~had~changed)) +
     ylab(expression(R["eff"]~component))
@@ -7183,7 +7184,7 @@ reff_plotting <- function(
              multistate = TRUE,
              base_colour = yellow,
              projection_at = projection_date,
-             plot_voc = TRUE) + 
+             plot_voc = FALSE) + 
     ggtitle(label = "Impact of improved surveillance",
             subtitle = expression(R["eff"]~"if"~only~surveillance~effectiveness~had~changed)) +
     ylab(expression(R["eff"]~component))
@@ -7197,7 +7198,7 @@ reff_plotting <- function(
              multistate = TRUE,
              base_colour = purple,
              projection_at = projection_date,
-             plot_voc = TRUE) + 
+             plot_voc = FALSE) + 
     ggtitle(label = "Impact contract tracing isolation",
             subtitle = expression(R["eff"]~"if"~only~extra~isolation~had~changed)) +
     ylab(expression(R["eff"]~component))
@@ -7211,7 +7212,7 @@ reff_plotting <- function(
              multistate = TRUE,
              base_colour = "Coral",
              projection_at = projection_date,
-             plot_voc = TRUE) + 
+             plot_voc = FALSE) + 
     ggtitle(label = "Impact of TTIQ",
             subtitle = expression(R["eff"]~"if"~only~TTIQ~had~changed)) +
     ylab(expression(R["eff"]~component))
@@ -7226,7 +7227,7 @@ reff_plotting <- function(
              multistate = TRUE,
              base_colour = green,
              projection_at = projection_date,
-             plot_voc = TRUE) + 
+             plot_voc = FALSE) + 
     ggtitle(label = "Impact of social distancing & vaccination",
             subtitle = expression(Component~of~R["eff"]~due~to~social~distancing~and~vaccination)) +
     ylab(expression(R["eff"]~component))
@@ -7242,7 +7243,7 @@ reff_plotting <- function(
              ylim = c(0, 0.4),
              intervention_at = quarantine_dates(),
              projection_at = projection_date,
-             plot_voc = TRUE) + 
+             plot_voc = FALSE) + 
     ggtitle(label = "Impact of quarantine of overseas arrivals",
             subtitle = expression(Component~of~R["eff"]~due~to~quarantine~of~overseas~arrivals)) +
     ylab(expression(R["eff"]~component))
@@ -7258,7 +7259,7 @@ reff_plotting <- function(
                   base_colour = green,
                   ylim = c(0, 4),
                   projection_at = projection_date,
-                  plot_voc = TRUE) +
+                  plot_voc = FALSE) +
     ggtitle(label = "Local to local transmission potential",
             subtitle = "Average across active cases") +
     ylab(expression(R["eff"]~from~"locally-acquired"~cases))
@@ -7290,7 +7291,7 @@ reff_plotting <- function(
                   base_colour = green,
                   ylim = c(0, 2),
                   projection_at = projection_date,
-                  plot_voc = TRUE) +
+                  plot_voc = FALSE) +
     ggtitle(label = "Local to local transmission potential",
             subtitle = "Average across active cases") +
     ylab(expression(R["eff"]~from~"locally-acquired"~cases))
@@ -7324,7 +7325,7 @@ reff_plotting <- function(
                   projection_at = projection_date,
                   ylim = NULL,
                   ybreaks = c(-2, 1),
-                  plot_voc = TRUE) + 
+                  plot_voc = FALSE) + 
     ggtitle(label = "Short-term variation in local to local transmission rates",
             subtitle = expression(Deviation~from~log(R["eff"])~of~"local-local"~transmission)) +
     ylab("Deviation")
@@ -7529,11 +7530,16 @@ fit_reff_model <- function(data, max_tries = 2,
 
 write_reff_key_dates <- function(model_data, dir = "outputs/") {
   # save these dates for Freya and Rob to check
+  fitted_macro_model <- readRDS("~/covid19_australia_interventions/outputs/fitted_macro_model.RDS")
+  line_df_micro<- readRDS("outputs/micro_plotting_data.RDS")[["line_df"]]
+  
   tibble(
     linelist_date = model_data$dates$linelist,
     latest_infection_date = model_data$dates$latest_infection,
     latest_reff_date = model_data$dates$latest_mobility,
     forecast_reff_change_date = model_data$dates$latest_mobility + 1,
+    micro_last_date= max(line_df_micro$date),
+    macro_last_date=max(fitted_macro_model$data$contacts$date),
     state = model_data$state
   ) %>%
     write_csv(
