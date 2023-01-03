@@ -10016,8 +10016,7 @@ fit_survey_gam <- function(
   m <- mgcv::gam(
     cbind(count, I(respondents - count)) ~ s(date_num) + intervention_stage,
     select = TRUE,
-    family = stats::binomial,
-    optimizer = c("outer","optim")
+    family = stats::binomial
   )
   
   
