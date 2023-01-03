@@ -5580,7 +5580,7 @@ get_act_summary_data <- function(){
 
 
 
-get_summary_data <- function(states = c("VIC","TAS","QLD")) {
+get_summary_data <- function(states = c("VIC","QLD")) {
   summary <- tibble(date = NULL,
                     test_type = NULL,cases = NULL,state = NULL)
   if ("VIC" %in% states) {
