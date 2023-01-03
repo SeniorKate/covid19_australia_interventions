@@ -58,7 +58,20 @@ source("R/macrodistancing_change.R")
 # [~60s]
 
 #overall linelist read line
-linelist <- load_linelist(use_vic = FALSE) #skip Vic since using summary data
+#read in the full linelist
+linelist_full <- load_linelist(use_vic = FALSE,
+                               use_nsw = TRUE,
+                               date = as_date("2022-12-08"))
+
+#read in updates
+linelist <- load_linelist(use_vic = FALSE, use_nsw = FALSE) 
+#cutoff date
+cutoff_date <- linelist %>% pull(date_confirmation) %>% min()
+
+linelist <- linelist %>% 
+  filter(state != "NSW") %>% 
+  bind_rows(linelist_full %>% 
+              filter(date_confirmation <= cutoff_date | state == "NSW"))
 
 # remove dubious SA onset dates
 # need to look at this again at some point
@@ -83,9 +96,6 @@ saveRDS(
   )
 )
 
-
-source("R/rolling_delays.R")
-#  -- figs to Mediaflux / to Freya
 
 # 4. TTIQ and Isolation effect
 #source("R/isolation_effect.R")
@@ -118,13 +128,6 @@ source("R/assemble_notification_data.R")
 # unnecessary unless edits to raw linelist write_linelist(linelist = linelist)
 
 
-# 2. Vaccination effect - Quantium update usually CoB Tuesday
-# [~ 45 min]
-source("R/immunity_effect.R")
-# -- Figs into Mediaflux / to Freya
-# -- all dated csv and rds outputs to Mediaflux
-
-
 # Section D) Dependent on NNDSS data update and outputs of all previous scripts:
 
 # 9. Run R effective model and output figures (R_eff_12_local.png,
@@ -137,5 +140,18 @@ source("R/immunity_effect.R")
 source("R/R_effective.R")
 ## - figures, samples as above, plus wt, alpha and delta, and other variants, and
 # outputs/output_dates.csv to Mediaflux/Freya
+
+
+# 2. Vaccination effect - Quantium update usually CoB Tuesday
+# [~ 45 min]
+source("R/immunity_effect.R")
+# -- Figs into Mediaflux / to Freya
+# -- all dated csv and rds outputs to Mediaflux
+
+
+source("R/rolling_delays.R")
+#  -- figs to Mediaflux / to Freya
+
+
 
 # hooray - you're done!
