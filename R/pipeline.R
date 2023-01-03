@@ -68,13 +68,13 @@ linelist <- load_linelist(use_vic = FALSE, use_nsw = FALSE)
 #cutoff date
 cutoff_date <- linelist %>% pull(date_confirmation) %>% min()
 
+#join updated linelist with older one
 linelist <- linelist %>% 
   filter(state != "NSW") %>% 
   bind_rows(linelist_full %>% 
-              filter(date_confirmation <= cutoff_date | state == "NSW"))
+              filter(date_confirmation < cutoff_date | state == "NSW"))
 
-# remove dubious SA onset dates
-# need to look at this again at some point
+# remove dubious SA onset dates that are dated to same as confirmation dates
 linelist$date_onset[(linelist$state == "SA" & linelist$date_onset >= as_date("2022-02-27"))] <- NA
 
 
@@ -83,9 +83,11 @@ linelist$date_onset[(linelist$state == "SA" & linelist$date_onset >= as_date("20
 min_date <- min(linelist$date_confirmation)
 max_date <- max(linelist$date_confirmation)
 
-#remove ddubious SA confirmation dates
+#remove dubious confirmation dates
 linelist <- linelist %>% filter(date_confirmation >= "2020-01-23")
 
+#visual check
+plot_linelist_by_confirmation_date(linelist = linelist, date_cutoff = cutoff_date - months(1))
 
 saveRDS(
   linelist,
