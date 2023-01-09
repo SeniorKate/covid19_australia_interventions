@@ -13,7 +13,7 @@ saveRDS(mobility, file = "outputs/cached_mobility.RDS")
 
 n_weeks_ahead <- 16
 first_date <- min(mobility$date)
-last_date <- max(mobility$date)
+last_date <- Sys.Date()
 
 mobility_fitted <- mobility %>%
   rename(

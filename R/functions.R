@@ -6043,7 +6043,7 @@ reff_model_data <- function(
       case_type = "local"
     )
   
-  # de-oscillate local infectious numbers
+  # correct for seasonality in local infectious numbers
   local_cases_infectious <- local_cases_infectious / dow_effect
   
   # those imported (only considered infectious, but with a different Reff)
