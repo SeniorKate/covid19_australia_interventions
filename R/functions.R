@@ -1590,12 +1590,26 @@ plot_trend <- function(
     df <- df[keep_only_rows, ]
   }
   
-  df <- df %>%
-    filter(
-      date >= min_date,
-      date <= max_date
-    ) %>%
-    mutate(type = "Nowcast")
+  
+  if (length(max_date) == 1) {
+    df <- df %>%
+      filter(
+        date >= min_date,
+        date <= max_date
+      ) %>%
+      mutate(type = "Nowcast")
+  } else {
+    df <- df %>%
+      filter(
+        date >= min_date
+      ) %>% 
+      left_join(tibble(state = data$states,
+                       max_date_per_state = max_date),
+                by = "state") %>% 
+      filter(date <= max_date_per_state) %>% 
+      select(-max_date_per_state) %>% 
+      mutate(type = "Nowcast")
+  }
   
   
   if (length(unique(df$date)) >= 200){
@@ -3286,6 +3300,164 @@ macrodistancing_null <- function(data, log_fraction_weekly_contacts_mean) {
   )
   
 }
+
+# macrodistancing model rewritten as mgcv::gam
+fit_contact_survey_gam <- function(
+  fit_dat,
+  pred_dat,
+  date_num_spline_base = -1
+) {
+  
+  #don't fit intervention if no data
+  if (anyNA(fit_dat$intervention_stage)) {
+    m <- mgcv::gam(data = fit_dat,
+                   formula = contact_num ~ # 
+                     # smooth variations in mobility
+                     s(date_num, k = date_num_spline_base, bs="tp") +
+                     
+                     # step changes around intervention impositions
+                     #intervention_stage +
+                     
+                     # # random effect on holidays (different for each holiday, but shrunk
+                     # # to an average holiday effect which used to predict into future)
+                     is_a_holiday +
+                     #s(holiday, bs = "re") +
+                     # 
+                     # # constant effect for school holidays
+                     is_a_school_holiday - 1, #+
+                   
+                   # day of the week effect
+                   #dow, #+
+                   #Day of year effect
+                   #s(doy, bs = "cc",k=50),
+                   select = TRUE,
+                   #,
+                   family = mgcv::nb(),#gaussian(discrete_lognormal_for_gam()),#stats::poisson()
+                   gamma = 0.2,
+                   #optimizer = "perf",
+                   control = list(irls.reg=1, maxit = 500))#,
+    #optimizer = c("outer","optim"))
+  } else {
+    m <- mgcv::gam(data = fit_dat,
+                   formula = contact_num ~ # 
+                     # smooth variations in mobility
+                     s(date_num, k = date_num_spline_base, bs="tp") +
+                     
+                     # step changes around intervention impositions
+                     intervention_stage +
+                     
+                     # # random effect on holidays (different for each holiday, but shrunk
+                     # # to an average holiday effect which used to predict into future)
+                     is_a_holiday +
+                     #s(holiday, bs = "re") +
+                     # 
+                     # # constant effect for school holidays
+                     is_a_school_holiday - 1, #+
+                   
+                   # day of the week effect
+                   #dow, #+
+                   #Day of year effect
+                   #s(doy, bs = "cc",k=50),
+                   select = TRUE,
+                   #,
+                   family = mgcv::nb(),#gaussian(discrete_lognormal_for_gam()),#stats::poisson()
+                   gamma = 0.2,
+                   #optimizer = "perf",
+                   control = list(irls.reg=1, maxit = 500))#,
+    #optimizer = c("outer","optim"))
+    
+    #if any intervention stage is too early to be included in fit_dat, pretend
+    #it's the same as the start of fit dat
+    pred_dat$intervention_stage[!(pred_dat$intervention_stage %in% unique(fit_dat$intervention_stage))] <- unique(fit_dat$intervention_stage)[1]
+  }
+  
+  
+  #remove holiday in pred_dat if nonexistent in fit dat, not used because not
+  #using holiday specific splines not sure why dplyr didn't work here
+  #pred_dat$holiday[!(pred_dat$holiday %in% unique(fit_dat$holiday))] <- "none"
+  
+  
+  pred <- predict(
+    object = m,
+    newdata = pred_dat,
+    se.fit = TRUE,
+    type = "link"
+  )
+  
+  quantile95 <- qnorm(0.95)
+  quantile75 <- qnorm(0.75)
+  ci_90_hi <- pred$fit + (quantile95 * pred$se.fit)
+  ci_90_lo <- pred$fit - (quantile95 * pred$se.fit)
+  ci_50_hi <- pred$fit + (quantile75 * pred$se.fit)
+  ci_50_lo <- pred$fit - (quantile75 * pred$se.fit)
+  #fitted <- pred$fit
+  
+  fitted <- m$family$linkinv(pred$fit) 
+  ci_90_hi <- m$family$linkinv(ci_90_hi) 
+  ci_90_lo <- m$family$linkinv(ci_90_lo) 
+  ci_50_hi <- m$family$linkinv(ci_50_hi) 
+  ci_50_lo <- m$family$linkinv(ci_50_lo) 
+  
+  
+  
+  tibble(
+    date = pred_dat$date,
+    mean = fitted,
+    ci_90_lo,
+    ci_50_lo,
+    ci_50_hi,
+    ci_90_hi
+  )
+  
+}
+
+# gam version of macrodistancing null
+fit_contact_survey_null_gam <- function(
+  fit_dat,
+  pred_dat
+) {
+  
+  #fit each survey event as independent category
+  fit_dat <- fit_dat %>% mutate(wave_date = as.factor(wave_date))
+  m <- mgcv::gam(data = fit_dat,
+                 formula = contact_num ~ wave_date - 1,
+                 select = TRUE,
+                 family = mgcv::nb(),#gaussian(discrete_lognormal_for_gam()),#stats::poisson()
+                 gamma = 1,
+                 optimizer = "perf",
+                 control = list(irls.reg=0.5, maxit = 500))
+  
+  pred_dat <- pred_dat %>% filter(!(is.na(wave_date)))
+  
+  
+  pred <- predict(
+    object = m,
+    newdata = pred_dat,
+    se.fit = TRUE,
+    type = "link"
+  )
+  
+  quantile_hi <- qnorm(0.975)
+  ci_hi <- pred$fit + (quantile_hi * pred$se.fit)
+  ci_lo <- pred$fit - (quantile_hi * pred$se.fit)
+  
+  #fitted <- pred$fit
+  
+  fitted <- m$family$linkinv(pred$fit) 
+  ci_hi <- m$family$linkinv(ci_hi) 
+  ci_lo <- m$family$linkinv(ci_lo) 
+  
+  
+  
+  tibble(
+    wave_date = pred_dat$wave_date,
+    mean = fitted,
+    ci_hi,
+    ci_lo
+  )
+  
+}
+
 
 # take a vector greta array correpsonding to dates and states and convert to
 # date-by-state wide format
@@ -5309,7 +5481,7 @@ get_qld_summary_data <- function(file = NULL,
       ungroup() %>%
       mutate(state = "QLD", test_type = "RAT") -> qld_legacy_rat
     
-    file %>% read_xlsx(sheet = 3) %>% 
+    file %>% read_xlsx(sheet = 1) %>% 
       mutate(date = as.Date(CollectionDate, format =  "%d/%m/%Y")) %>% 
       group_by(date) %>%
       mutate(cases = sum(N)) %>%
@@ -5324,11 +5496,12 @@ get_qld_summary_data <- function(file = NULL,
   } else {
     file %>% read_xlsx(sheet = 3) %>% 
       rename_with(~gsub(" ", "", .x, fixed = TRUE)) %>% 
-      mutate(date = as.Date(CollectionDate, format =  "%d/%m/%Y"),
+      mutate(CollectionDate = as.Date(CollectionDate, format =  "%d/%m/%Y"),
              test_type = case_when(
                ResolutionStatus  == "Confirmed" ~ "PCR",
                ResolutionStatus %in% c("Probable") ~ "RAT"
              )) %>% 
+      mutate(date=as.Date(NotificationDate, format =  "%d/%m/%Y"))%>%
       group_by(date,test_type) %>%
       mutate(cases = sum(N)) %>%
       filter(date >= "2022-01-06") %>%
@@ -5407,7 +5580,7 @@ get_act_summary_data <- function(){
 
 
 
-get_summary_data <- function(states = c("VIC","TAS","QLD")) {
+get_summary_data <- function(states = c("VIC","QLD")) {
   summary <- tibble(date = NULL,
                     test_type = NULL,cases = NULL,state = NULL)
   if ("VIC" %in% states) {
@@ -5800,7 +5973,7 @@ reff_model_data <- function(
   detectable <- completion_prob_mat >= detection_cutoff
   
   # the last date with infection data we include
-  last_detectable_idx <- which(!apply(detectable, 1, any))[1]
+  last_detectable_idx <- apply(detectable, 2, sum)
   latest_infection_date <- full_dates[ifelse(is.na(last_detectable_idx), length(full_dates), last_detectable_idx)]
   
   if (impute_infection_with_CAR) {
@@ -5870,7 +6043,7 @@ reff_model_data <- function(
       case_type = "local"
     )
   
-  # de-oscillate local infectious numbers
+  # correct for seasonality in local infectious numbers
   local_cases_infectious <- local_cases_infectious / dow_effect
   
   # those imported (only considered infectious, but with a different Reff)
@@ -6823,7 +6996,7 @@ reff_plotting <- function(
   }
   
   if(is.na(min_date)){
-    min_date <- max_date %m-% months(6)
+    min_date <- max(max_date) %m-% months(6)
   }
   
   # reformat case data for plotting (C1 and C12)
@@ -6862,7 +7035,7 @@ reff_plotting <- function(
     full_join(
       expand_grid(
         state = fitted_model$data$states,
-        date = seq(min_date, max_date, by = 1),
+        date = seq(min_date, max(max_date), by = 1),
       )
     ) %>%
     mutate(
@@ -6909,18 +7082,20 @@ reff_plotting <- function(
                   projection_at = projection_date,
                   ylim = NULL,
                   ybreaks = c(-5, 5),
-                  plot_voc = TRUE) + 
+                  plot_voc = FALSE) + 
     ggtitle(label = "Log ratio of local-to-local transmission and transmission potential",
             subtitle = expression(Log~ratio~of~R["eff"]~and~transmission~potential)) +
     ylab("Deviation")
   
   if (mobility_extrapolation_rectangle) {
-    p <- p + annotate("rect",
-                      xmin = fitted_model$data$dates$latest_infection,
-                      xmax = fitted_model$data$dates$latest_mobility,
-                      ymin = -Inf,
-                      ymax = Inf,
-                      fill = grey(0.5), alpha = 0.1)
+    p <- p + geom_rect(aes(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax),
+                       data = tibble(xmin = fitted_model$data$dates$latest_infection,
+                                     xmax = fitted_model$data$dates$latest_mobility,
+                                     ymin = -Inf,
+                                     ymax = Inf,
+                                     state = fitted_model$data$state),
+                       fill = grey(0.5), alpha = 0.1, 
+                       inherit.aes = FALSE)
     
   }
   
@@ -6942,7 +7117,7 @@ reff_plotting <- function(
              projection_at = projection_date,
              ylim = c(0, 8),
              intervention_at = interventions(),
-             plot_voc = TRUE,
+             plot_voc = FALSE,
              plot_vax = TRUE
   ) + 
     ggtitle(label = "Impact of vaccination",
@@ -6962,7 +7137,7 @@ reff_plotting <- function(
     intervention_at = interventions(),
     base_colour = green,
     projection_at = projection_date,
-    plot_voc = TRUE,
+    plot_voc = FALSE,
     plot_vax = TRUE
   ) + 
     ggtitle(label = "Impact of social distancing only",
@@ -6979,7 +7154,7 @@ reff_plotting <- function(
              multistate = TRUE,
              base_colour = purple,
              projection_at = projection_date,
-             plot_voc = TRUE) + 
+             plot_voc = FALSE) + 
     ggtitle(label = "Impact of micro-distancing",
             subtitle = expression(R["eff"]~"if"~only~"micro-distancing"~behaviour~had~changed)) +
     ylab(expression(R["eff"]~component))
@@ -6994,7 +7169,7 @@ reff_plotting <- function(
              multistate = TRUE,
              base_colour = blue,
              projection_at = projection_date,
-             plot_voc = TRUE) + 
+             plot_voc = FALSE) + 
     ggtitle(label = "Impact of macro-distancing",
             subtitle = expression(R["eff"]~"if"~only~"macro-distancing"~behaviour~had~changed)) +
     ylab(expression(R["eff"]~component))
@@ -7009,7 +7184,7 @@ reff_plotting <- function(
              multistate = TRUE,
              base_colour = yellow,
              projection_at = projection_date,
-             plot_voc = TRUE) + 
+             plot_voc = FALSE) + 
     ggtitle(label = "Impact of improved surveillance",
             subtitle = expression(R["eff"]~"if"~only~surveillance~effectiveness~had~changed)) +
     ylab(expression(R["eff"]~component))
@@ -7023,7 +7198,7 @@ reff_plotting <- function(
              multistate = TRUE,
              base_colour = purple,
              projection_at = projection_date,
-             plot_voc = TRUE) + 
+             plot_voc = FALSE) + 
     ggtitle(label = "Impact contract tracing isolation",
             subtitle = expression(R["eff"]~"if"~only~extra~isolation~had~changed)) +
     ylab(expression(R["eff"]~component))
@@ -7037,7 +7212,7 @@ reff_plotting <- function(
              multistate = TRUE,
              base_colour = "Coral",
              projection_at = projection_date,
-             plot_voc = TRUE) + 
+             plot_voc = FALSE) + 
     ggtitle(label = "Impact of TTIQ",
             subtitle = expression(R["eff"]~"if"~only~TTIQ~had~changed)) +
     ylab(expression(R["eff"]~component))
@@ -7052,7 +7227,7 @@ reff_plotting <- function(
              multistate = TRUE,
              base_colour = green,
              projection_at = projection_date,
-             plot_voc = TRUE) + 
+             plot_voc = FALSE) + 
     ggtitle(label = "Impact of social distancing & vaccination",
             subtitle = expression(Component~of~R["eff"]~due~to~social~distancing~and~vaccination)) +
     ylab(expression(R["eff"]~component))
@@ -7068,7 +7243,7 @@ reff_plotting <- function(
              ylim = c(0, 0.4),
              intervention_at = quarantine_dates(),
              projection_at = projection_date,
-             plot_voc = TRUE) + 
+             plot_voc = FALSE) + 
     ggtitle(label = "Impact of quarantine of overseas arrivals",
             subtitle = expression(Component~of~R["eff"]~due~to~quarantine~of~overseas~arrivals)) +
     ylab(expression(R["eff"]~component))
@@ -7084,18 +7259,20 @@ reff_plotting <- function(
                   base_colour = green,
                   ylim = c(0, 4),
                   projection_at = projection_date,
-                  plot_voc = TRUE) +
+                  plot_voc = FALSE) +
     ggtitle(label = "Local to local transmission potential",
             subtitle = "Average across active cases") +
     ylab(expression(R["eff"]~from~"locally-acquired"~cases))
   
   if (mobility_extrapolation_rectangle) {
-    p <- p + annotate("rect",
-                      xmin = fitted_model$data$dates$latest_infection,
-                      xmax = fitted_model$data$dates$latest_mobility,
-                      ymin = -Inf,
-                      ymax = Inf,
-                      fill = grey(0.5), alpha = 0.1)
+    p <- p + geom_rect(aes(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax),
+                       data = tibble(xmin = fitted_model$data$dates$latest_infection,
+                                     xmax = fitted_model$data$dates$latest_mobility,
+                                     ymin = -Inf,
+                                     ymax = Inf,
+                                     state = fitted_model$data$state),
+                       fill = grey(0.5), alpha = 0.1, 
+                       inherit.aes = FALSE)
     
   }
   
@@ -7114,18 +7291,20 @@ reff_plotting <- function(
                   base_colour = green,
                   ylim = c(0, 2),
                   projection_at = projection_date,
-                  plot_voc = TRUE) +
+                  plot_voc = FALSE) +
     ggtitle(label = "Local to local transmission potential",
             subtitle = "Average across active cases") +
     ylab(expression(R["eff"]~from~"locally-acquired"~cases))
   
   if (mobility_extrapolation_rectangle) {
-    p <- p + annotate("rect",
-                      xmin = fitted_model$data$dates$latest_infection,
-                      xmax = fitted_model$data$dates$latest_mobility,
-                      ymin = -Inf,
-                      ymax = Inf,
-                      fill = grey(0.5), alpha = 0.1)
+    p <- p + geom_rect(aes(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax),
+                       data = tibble(xmin = fitted_model$data$dates$latest_infection,
+                                     xmax = fitted_model$data$dates$latest_mobility,
+                                     ymin = -Inf,
+                                     ymax = Inf,
+                                     state = fitted_model$data$state),
+                       fill = grey(0.5), alpha = 0.1, 
+                       inherit.aes = FALSE)
     
   }
   
@@ -7146,18 +7325,20 @@ reff_plotting <- function(
                   projection_at = projection_date,
                   ylim = NULL,
                   ybreaks = c(-2, 1),
-                  plot_voc = TRUE) + 
+                  plot_voc = FALSE) + 
     ggtitle(label = "Short-term variation in local to local transmission rates",
             subtitle = expression(Deviation~from~log(R["eff"])~of~"local-local"~transmission)) +
     ylab("Deviation")
   
   if (mobility_extrapolation_rectangle) {
-    p <- p + annotate("rect",
-                      xmin = fitted_model$data$dates$latest_infection,
-                      xmax = fitted_model$data$dates$latest_mobility,
-                      ymin = -Inf,
-                      ymax = Inf,
-                      fill = grey(0.5), alpha = 0.1)
+    p <- p + geom_rect(aes(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax),
+                       data = tibble(xmin = fitted_model$data$dates$latest_infection,
+                                     xmax = fitted_model$data$dates$latest_mobility,
+                                     ymin = -Inf,
+                                     ymax = Inf,
+                                     state = fitted_model$data$state),
+                       fill = grey(0.5), alpha = 0.1, 
+                       inherit.aes = FALSE)
     
   }
   
@@ -7349,11 +7530,17 @@ fit_reff_model <- function(data, max_tries = 2,
 
 write_reff_key_dates <- function(model_data, dir = "outputs/") {
   # save these dates for Freya and Rob to check
+  fitted_macro_model <- readRDS("~/covid19_australia_interventions/outputs/fitted_macro_model.RDS")
+  line_df_micro<- readRDS("outputs/micro_plotting_data.RDS")[["line_df"]]
+  
   tibble(
     linelist_date = model_data$dates$linelist,
     latest_infection_date = model_data$dates$latest_infection,
     latest_reff_date = model_data$dates$latest_mobility,
-    forecast_reff_change_date = model_data$dates$latest_mobility + 1
+    forecast_reff_change_date = model_data$dates$latest_mobility + 1,
+    micro_last_date= max(line_df_micro$date),
+    macro_last_date=max(fitted_macro_model$data$contacts$date),
+    state = model_data$state
   ) %>%
     write_csv(
       file.path(dir, "output_dates.csv")
@@ -9829,8 +10016,7 @@ fit_survey_gam <- function(
   m <- mgcv::gam(
     cbind(count, I(respondents - count)) ~ s(date_num) + intervention_stage,
     select = TRUE,
-    family = stats::binomial,
-    optimizer = c("outer","optim")
+    family = stats::binomial
   )
   
   

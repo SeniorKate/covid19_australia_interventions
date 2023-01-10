@@ -11,6 +11,9 @@ source("R/functions.R")
 # (<state>_datastream_model_fit.png x8 and multistate_model_fit.png), and trend
 # estimates (google_change_trends.RDS) [~60s]
 
+# mobility data no longer supplied by Google but run the script anyway to keep
+# backward compatible date series assembly for distancing models
+
 source("R/mobility_change.R")
 # -- These figs into Mediaflux/to Freya
 # -- outputs/mobility_dates.csv into Mediaflux/to Freya
@@ -19,7 +22,7 @@ source("R/mobility_change.R")
 # copied to data/survey_raw):
 # this usually comes on Monday so do this first
 
-# 6. parse all contact rate data, automatically remove duplicates, and visually
+# 2. parse all contact rate data, automatically remove duplicates, and visually
 # check for duplicate ages [~60s]
 parse_all_doh_surveys() %>%
   filter(wave > (max(wave) - 4)) %>%
@@ -32,7 +35,7 @@ ggsave(
 )
 # will light up cells with any overly large counts. If this happens check raw data
 
-# 7. Output microdistancing survey data on Mediaflux:
+# 3. Output microdistancing survey data on Mediaflux:
 # (data/microdistancing/Barometer wave <wave> compliance.csv and
 # data/contacts/barometer/contact numbers wave <wave>.csv) and face_covering,
 # run microdistancing model, and output figure (microdistancing_effect.png) and
@@ -41,7 +44,7 @@ source("R/microdistancing_change.R")
 # -- figure to Mediaflux / Freya
 
 
-# 8. Run macrodistancing model and output figure ((microdistancing_effect.png) and
+# 4. Run macrodistancing model and output figure ((microdistancing_effect.png) and
 # trend estimates (macrodistancing_trends.RDS). Can be run concurrently with
 # microdistancing model (i.e. on a separate process/machine) [~10h]
 # macro takes half a day to run so best to do on Mondays
@@ -53,15 +56,27 @@ source("R/macrodistancing_change.R")
 #  produces notification date by state plots for the most recent 28 days
 # optionally, produce NINDSS only watermelon plot
 
-# 3. Run surveillance effect models and output figures (surveillance_effect.png
-# and notification_delays.png) and model objects (delay_from_onset_cdfs.RDS)
-# [~60s]
 
-#overall linelist read line
-linelist <- load_linelist(use_vic = FALSE) #skip Vic since using summary data
+# 5. Read in and process NINDSS data
 
-# remove dubious SA onset dates
-# need to look at this again at some point
+# NINDSS linelist 
+# read in the full linelist
+linelist_full <- load_linelist(use_vic = FALSE,
+                               use_nsw = TRUE,
+                               date = as_date("2022-12-08"))
+
+#read in the last 6 months only updates
+linelist <- load_linelist(use_vic = FALSE, use_nsw = FALSE) 
+#cutoff date
+cutoff_date <- linelist %>% pull(date_confirmation) %>% min()
+
+#join updated linelist with older one
+linelist <- linelist %>% 
+  filter(state != "NSW") %>% 
+  bind_rows(linelist_full %>% 
+              filter(date_confirmation < cutoff_date | state == "NSW"))
+
+# remove dubious SA onset dates that are dated to same as confirmation dates
 linelist$date_onset[(linelist$state == "SA" & linelist$date_onset >= as_date("2022-02-27"))] <- NA
 
 
@@ -70,9 +85,11 @@ linelist$date_onset[(linelist$state == "SA" & linelist$date_onset >= as_date("20
 min_date <- min(linelist$date_confirmation)
 max_date <- max(linelist$date_confirmation)
 
-#remove ddubious SA confirmation dates
+#remove dubious confirmation dates (shouldn't be any here)
 linelist <- linelist %>% filter(date_confirmation >= "2020-01-23")
 
+#visual check
+plot_linelist_by_confirmation_date(linelist = linelist, date_cutoff = cutoff_date - months(1))
 
 saveRDS(
   linelist,
@@ -84,19 +101,35 @@ saveRDS(
 )
 
 
+# 6. assemble NINDSS and state supplied summary data 
+source("R/assemble_notification_data.R")
+
+# 9. Run R effective model and output figures (R_eff_12_local.png,
+# R_eff_1_import.png, R_eff_1_local.png, R_eff_1_local_macro.png,
+# R_eff_1_local_micro.png, R_eff_1_local_surv.png, R_eff_2_local.png in both
+# outputs/figures/ and outputs/projection/figures/) and trajectory draws for Rob
+# Moss ( r_eff_12_local_samples_soft_clamped_50.csv, r_eff_1_local_samples.csv,
+# r_eff_12_local_samples.csv, r_eff_12_local_samples_soft_clamped_95.csv in both
+# outputs/ and outputs/projection/) [~3-5h]
+source("R/R_effective.R")
+## - figures, samples as above, plus wt, alpha and delta, and other variants, and
+# outputs/output_dates.csv to Mediaflux/Freya
+
+
+# 2. Vaccination effect - Quantium update usually CoB Tuesday
+# do this after reff as we can use out of date quantium data
+# [~ 3 hrs]
+source("R/immunity_effect.R")
+# -- Figs into Mediaflux / to Freya
+# -- all dated csv and rds outputs to Mediaflux
+
+# 5. Run surveillance effect models and output figures (surveillance_effect.png
+# and notification_delays.png) and model objects (delay_from_onset_cdfs.RDS)
+# [~ 2 hrs]
+# this is lengthy now and not used in report, so de-prioritise
 source("R/rolling_delays.R")
 #  -- figs to Mediaflux / to Freya
 
-# 4. TTIQ and Isolation effect
-#source("R/isolation_effect.R")
-# -- figs and ttiq_effect.csv to Mediaflux / to Freya
-
-
-# # 5. summary data approach
-# load in commonwealth summary data and process it in reff model format
-# this is a not-so-temporary data stream
-# expect to change data stream again when select interview data becomes available
-source("R/assemble_notification_data.R")
 
 
 # Archived older pipeline
@@ -117,25 +150,8 @@ source("R/assemble_notification_data.R")
 # # write linelist format for UoAdelaide (Tobin/Josh) if necessary # usually
 # unnecessary unless edits to raw linelist write_linelist(linelist = linelist)
 
-
-# 2. Vaccination effect - Quantium update usually CoB Tuesday
-# [~ 45 min]
-source("R/immunity_effect.R")
-# -- Figs into Mediaflux / to Freya
-# -- all dated csv and rds outputs to Mediaflux
-
-
-# Section D) Dependent on NNDSS data update and outputs of all previous scripts:
-
-# 9. Run R effective model and output figures (R_eff_12_local.png,
-# R_eff_1_import.png, R_eff_1_local.png, R_eff_1_local_macro.png,
-# R_eff_1_local_micro.png, R_eff_1_local_surv.png, R_eff_2_local.png in both
-# outputs/figures/ and outputs/projection/figures/) and trajectory draws for Rob
-# Moss ( r_eff_12_local_samples_soft_clamped_50.csv, r_eff_1_local_samples.csv,
-# r_eff_12_local_samples.csv, r_eff_12_local_samples_soft_clamped_95.csv in both
-# outputs/ and outputs/projection/) [~1-2h]
-source("R/R_effective.R")
-## - figures, samples as above, plus wt, alpha and delta, and other variants, and
-# outputs/output_dates.csv to Mediaflux/Freya
+# 4. TTIQ and Isolation effect
+#source("R/isolation_effect.R")
+# -- figs and ttiq_effect.csv to Mediaflux / to Freya
 
 # hooray - you're done!

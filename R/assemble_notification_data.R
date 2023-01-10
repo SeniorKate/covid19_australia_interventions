@@ -6,18 +6,20 @@ get_latest_linelist()
 
 linelist <- readRDS(paste0("outputs/",get_latest_linelist()))
 
-#hack interstate import issue introduced by fast nindss processing
-#linelist$interstate_import <- FALSE
-
 plot_linelist_by_confirmation_date(linelist = linelist)
 
 #load all summary format data
 summary_data <- get_summary_data()
 
+#visually check for issues
 summary_data %>% filter(date>=(max(summary_data$date)-months(1))) %>% 
   ggplot(aes(x = date, y = cases, fill = test_type)) + 
   geom_col(position = "dodge") + 
   facet_wrap(~state,scales = "free")
+
+#remove last day of data in Qld if it is incomplete 
+summary_data <- summary_data %>% 
+  filter(date < max(summary_data$date) | state == "VIC")
 
 #get act for the period where NINDSS had a rat spike issue
 act_issue_period <- get_act_summary_data()
@@ -53,7 +55,13 @@ linelist <- linelist %>%
          date_confirmation <= (max(linelist$date_confirmation) - weeks(1))) %>%
   #the date filter is necessary to avoid removing pre RAT era cases
   select(!type_count)
-#check
+#check if any last day appears to have incomplete reporting
+plot_linelist_by_confirmation_date(linelist = linelist)
+
+#drop the latest reporting day for some jurisdictions if incomplete 
+linelist <- linelist %>% 
+  filter(date_confirmation < max(date_confirmation) | state != "SA")
+
 plot_linelist_by_confirmation_date(linelist = linelist)
 #record the days of lag for each jurisdiction
 state_date_lag <- linelist %>% 
