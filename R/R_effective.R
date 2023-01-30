@@ -106,7 +106,7 @@ if (const_TP) {
 system.time(
   
   refitted_model <- fit_reff_model(data,warmup = 500,
-                                   init_n_samples = 2000,
+                                   init_n_samples = 1200,
                                    max_tries = 1, 
                                    iterations_per_step = 1000,
                                    TP_obj = predicted_TP_obj)
