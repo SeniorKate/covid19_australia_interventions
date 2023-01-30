@@ -4626,7 +4626,7 @@ lga_to_state <- function (lga) {
 
 linelist_date_times <- function(
     dir,
-    name_pattern = "^COVID-19 UoM "
+    name_pattern = "^COVID-19 UoM |COVID-19 UoM 6months-"
 ) {
   # find the files
   files <- list.files(dir, pattern = c(".xlsx*$|.csv$"), full.names = TRUE)

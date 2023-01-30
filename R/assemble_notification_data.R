@@ -17,7 +17,7 @@ summary_data %>% filter(date>=(max(summary_data$date)-months(1))) %>%
   geom_col(position = "dodge") + 
   facet_wrap(~state,scales = "free")
 
-#remove last day of data in Qld if it is incomplete 
+#remove last day of data in Qld or Vic if it is incomplete 
 summary_data <- summary_data %>% 
   filter(date < max(summary_data$date) | state == "VIC")
 
@@ -59,6 +59,7 @@ linelist <- linelist %>%
 plot_linelist_by_confirmation_date(linelist = linelist)
 
 #drop the latest reporting day for some jurisdictions if incomplete 
+#typically this is SA due to data uploaded on extraction day
 linelist <- linelist %>% 
   filter(date_confirmation < max(date_confirmation) | state != "SA")
 
@@ -71,6 +72,10 @@ state_date_lag <- linelist %>%
   mutate(days_lag = max(last_date) - last_date,
          days_lag = as.numeric(days_lag))
 
+
+state_date_lag
+#doublecheck date range
+linelist %>% pull(date_confirmation) %>% summary()
 
 
 #use NSW part of the linelist to get delay cdfs for different test modes

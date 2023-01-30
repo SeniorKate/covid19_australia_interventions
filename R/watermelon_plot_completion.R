@@ -72,12 +72,12 @@ lc_long %>%
       xintercept = date_onset
     )
   ) +
-  geom_vline(
-    data = prob_line_90,
-    aes(
-      xintercept = date_onset
-    )
-  ) +
+  # geom_vline(
+  #   data = prob_line_90,
+  #   aes(
+  #     xintercept = date_onset
+  #   )
+  # ) +
   facet_wrap(
     facets = vars(state),
     ncol = 2,

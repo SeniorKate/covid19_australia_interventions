@@ -14,7 +14,7 @@ source("R/functions.R")
 # mobility data no longer supplied by Google but run the script anyway to keep
 # backward compatible date series assembly for distancing models
 
-source("R/mobility_change.R")
+#source("R/mobility_change.R")
 # -- These figs into Mediaflux/to Freya
 # -- outputs/mobility_dates.csv into Mediaflux/to Freya
 
@@ -83,7 +83,8 @@ linelist$date_onset[(linelist$state == "SA" & linelist$date_onset >= as_date("20
 #check min & max dates
 
 min_date <- min(linelist$date_confirmation)
-max_date <- max(linelist$date_confirmation)
+min_date
+(max_date <- max(linelist$date_confirmation))
 
 #remove dubious confirmation dates (shouldn't be any here)
 linelist <- linelist %>% filter(date_confirmation >= "2020-01-23")
