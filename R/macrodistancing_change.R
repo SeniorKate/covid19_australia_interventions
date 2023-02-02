@@ -276,18 +276,24 @@ saveRDS(survey_points, "outputs/macro_data_fit.RDS")
 #survey_points <- readRDS("outputs/macro_data_fit.RDS")
 
 
+
+#determine cutoff date
+left.cutoff.date <- max(data$contacts$date) - years(2)
+
+survey_points <- survey_points %>% filter(wave_date >= left.cutoff.date)
+
 # get holiday dates and subset to where they overlap with surveys
 holiday_lines <- survey_points %>%
   mutate(date_start = wave_date - wave_duration / 2,
          date_end = wave_date + wave_duration / 2) %>%
   select(state, date_start, date_end) %>%
   left_join(
-    holiday_dates() %>%
+    holiday_dates() %>% filter(date >= left.cutoff.date) %>% 
       mutate(state = abbreviate_states(state))
   ) %>%
   filter(date < date_end & date > date_start)
 
-holiday_lines <- holiday_dates() %>%
+holiday_lines <- holiday_dates() %>% filter(date >= left.cutoff.date) %>% 
   mutate(
     state = abbreviate_states(state)
   ) %>%
@@ -295,6 +301,9 @@ holiday_lines <- holiday_dates() %>%
     date <= max(data$contacts$date) &
       date >= as.Date("2020-03-01")
   )
+
+intervention_steps <- intervention_steps %>% filter(date >= left.cutoff.date)
+
 
 type <- 1
 states <- unique(data$location_change_trends$state)
@@ -312,13 +321,18 @@ plot_data <- list(
   n_dates_project = length(dates)
 )
 
+
 macro_ticks_labels <- split_ticks_and_labels(
-  data = survey_points$wave_date,
+  data = survey_points %>% filter(wave_date >= left.cutoff.date) %>% pull(wave_date),
   tick_freq = "1 month",
   label_freq = "4 months",
   label_format = "%b%y",
   label_last = FALSE # for some reason this is having opposite effect, i.e. FALSE is labelling last (as desired)
 )
+
+
+
+
 
 # non-household contacts
 p <- plot_trend(use_simulations = FALSE,
@@ -327,30 +341,31 @@ p <- plot_trend(use_simulations = FALSE,
                 multistate = TRUE,
                 base_colour = purple,
                 max_date = max(data$contacts$date),
+                min_date = left.cutoff.date,
                 ylim = c(0, 20),
                 hline_at = NULL) + 
   ggtitle(label = "Macro-distancing trend",
           subtitle = "Rate of non-household contacts") +
   ylab("Estimated mean number of non-household contacts per day") + 
   
-  # add baseline estimate
-  geom_point(
-    aes(date, estimate),
-    data = baseline_point,
-    size = 0.5,
-    colour = grey(0.5)
-  ) +
-  geom_errorbar(
-    aes(
-      date,
-      estimate,
-      ymin = lower,
-      ymax = upper
-    ),
-    data = baseline_point,
-    width = 0,
-    colour = grey(0.5)
-  ) + 
+  # # add baseline estimate
+  # geom_point(
+  #   aes(date, estimate),
+  #   data = baseline_point,
+  #   size = 0.5,
+  #   colour = grey(0.5)
+  # ) +
+  # geom_errorbar(
+  #   aes(
+  #     date,
+  #     estimate,
+  #     ymin = lower,
+  #     ymax = upper
+  #   ),
+  #   data = baseline_point,
+  #   width = 0,
+  #   colour = grey(0.5)
+  # ) + 
 
   # rug marks for holidays
   geom_rug(
@@ -408,30 +423,31 @@ p <- plot_trend(use_simulations = FALSE,
                 multistate = TRUE,
                 base_colour = purple,
                 max_date = max(data$contacts$date),
+                min_date = left.cutoff.date,
                 ylim = c(0, 20),
                 hline_at = NULL) + 
   ggtitle(label = "Macro-distancing trend",
           subtitle = "Rate of non-household contacts") +
   ylab("Estimated mean number of non-household contacts per day") + 
   
-  # add baseline estimate
-  geom_point(
-    aes(date, estimate),
-    data = baseline_point,
-    size = 0.5,
-    colour = grey(0.5)
-  ) +
-  geom_errorbar(
-    aes(
-      date,
-      estimate,
-      ymin = lower,
-      ymax = upper
-    ),
-    data = baseline_point,
-    width = 0,
-    colour = grey(0.5)
-  ) + 
+  # # add baseline estimate
+  # geom_point(
+  #   aes(date, estimate),
+  #   data = baseline_point,
+  #   size = 0.5,
+  #   colour = grey(0.5)
+  # ) +
+  # geom_errorbar(
+  #   aes(
+  #     date,
+  #     estimate,
+  #     ymin = lower,
+  #     ymax = upper
+  #   ),
+  #   data = baseline_point,
+  #   width = 0,
+  #   colour = grey(0.5)
+  # ) + 
   
   # rug marks for holidays
   geom_rug(
