@@ -7786,9 +7786,11 @@ detection_probability_matrix <- function(latest_date,
   onset_dates_mat <- matrix(
     onset_dates, 
     nrow = n_dates,
-    ncol = n_states
-  )
-  
+    ncol = n_states,
+  ) 
+  # 
+  # onset_dates_mat <- onset_dates_mat %>% as_date(origin = lubridate::origin)
+  # 
   delays_mat <- matrix(
     delays, 
     nrow = n_dates,
@@ -7812,9 +7814,9 @@ detection_probability_matrix <- function(latest_date,
   # get the detection probability matrix
   detection_prob_mat <- delays_mat * 0
   detection_prob_mat[] <- notification_delay_cdf(
-    delays = delays_mat,
-    possible_onset_dates = onset_dates_mat,
-    states = states_mat
+    delays = delays_mat %>% as.vector(),
+    possible_onset_dates = onset_dates_mat %>% as.vector(),
+    states = states_mat %>% as.vector()
   )
   
   detection_prob_mat
@@ -10016,7 +10018,7 @@ fit_survey_gam <- function(
   m <- mgcv::gam(
     cbind(count, I(respondents - count)) ~ s(date_num) + intervention_stage,
     select = TRUE,
-    family = stats::binomial
+    family = stats::binomial,optimizer = c('outer',"optim")
   )
   
   
