@@ -61,7 +61,7 @@ plot_linelist_by_confirmation_date(linelist = linelist)
 #drop the latest reporting day for some jurisdictions if incomplete 
 #typically this is SA due to data uploaded on extraction day
 linelist <- linelist %>% 
-  filter(date_confirmation < max(date_confirmation) | state != "SA")
+  filter(date_confirmation < as_date("2023-01-28") | state != "WA")
 
 plot_linelist_by_confirmation_date(linelist = linelist)
 #record the days of lag for each jurisdiction
@@ -75,7 +75,7 @@ state_date_lag <- linelist %>%
 
 state_date_lag
 #doublecheck date range
-linelist %>% pull(date_confirmation) %>% summary()
+linelist %>% pull(date_confirmation) %>% range()
 
 
 #use NSW part of the linelist to get delay cdfs for different test modes
