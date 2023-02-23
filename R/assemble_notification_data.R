@@ -21,6 +21,13 @@ summary_data %>% filter(date>=(max(summary_data$date)-months(1))) %>%
 summary_data <- summary_data %>% 
   filter(date < max(summary_data$date) | state == "VIC")
 
+#visually check for issues again
+summary_data %>% filter(date>=(max(summary_data$date)-months(1))) %>% 
+  ggplot(aes(x = date, y = cases, fill = test_type)) + 
+  geom_col(position = "dodge") + 
+  facet_wrap(~state,scales = "free")
+
+
 #get act for the period where NINDSS had a rat spike issue
 act_issue_period <- get_act_summary_data()
 
@@ -61,7 +68,7 @@ plot_linelist_by_confirmation_date(linelist = linelist)
 #drop the latest reporting day for some jurisdictions if incomplete 
 #typically this is SA due to data uploaded on extraction day
 linelist <- linelist %>% 
-  filter(date_confirmation < as_date("2023-01-28") | state != "WA")
+  filter(date_confirmation < max(linelist$date_confirmation) | state != "SA")
 
 plot_linelist_by_confirmation_date(linelist = linelist)
 #record the days of lag for each jurisdiction
@@ -123,7 +130,7 @@ data <- reff_model_data(linelist_raw = linelist,
                         state_specific_right_truncation = TRUE)
 #data[["valid_mat"]][c(919,920),"QLD"] <- FALSE
 saveRDS(data, "outputs/pre_loaded_reff_data.RDS")
-#data <- readRDS("outputs/pre_loaded_reff_data_old_imputation.RDS")
+#data <- readRDS("outputs/pre_loaded_reff_data.RDS")
 
 source("R/watermelon_plot_completion.R")
 

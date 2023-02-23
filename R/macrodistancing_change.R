@@ -347,6 +347,11 @@ p <- plot_trend(use_simulations = FALSE,
   ggtitle(label = "Macro-distancing trend",
           subtitle = "Rate of non-household contacts") +
   ylab("Estimated mean number of non-household contacts per day") + 
+  # # add baseline estimate
+  # geom_hline(yintercept = baseline_point$estimate,
+  #   colour = grey(0.5,0.5),
+  #   linetype = 5
+  # ) +
   
   # # add baseline estimate
   # geom_point(
@@ -429,7 +434,12 @@ p <- plot_trend(use_simulations = FALSE,
   ggtitle(label = "Macro-distancing trend",
           subtitle = "Rate of non-household contacts") +
   ylab("Estimated mean number of non-household contacts per day") + 
-  
+  # add baseline estimate
+  # geom_hline(yintercept = baseline_point$estimate,
+  #            colour = grey(0.5,0.5),
+  #            linetype = 5
+  # ) +
+  # 
   # # add baseline estimate
   # geom_point(
   #   aes(date, estimate),
@@ -487,7 +497,25 @@ p <- plot_trend(use_simulations = FALSE,
   ggtitle(label = "Macro-distancing trend",
           subtitle = "Rate of non-household contacts") +
   ylab("Estimated mean number of non-household contacts per day") + 
-
+  # # # add baseline estimate
+  # scale_x_date(limits = c(max(data$contacts$date) - months(6),max(data$contacts$date))) + 
+  # geom_point(aes(x = max(data$contacts$date),
+  #                y = baseline_point$estimate),
+  #            shape = 17,
+  #            colour = grey(0.5,0.5),
+  #            size = 2) + 
+             #            colour = grey(0.5,0.5),
+             #            linetype = 5)
+  # geom_hline(yintercept = baseline_point$estimate,
+  #            colour = grey(0.5,0.5),
+  #            linetype = 5
+  # ) +
+  # 
+  # geom_ribbon(aes(ymin = baseline_point$lower,
+  #                 ymax = baseline_point$upper),
+  #             alpha = 0.1,
+  #             colour = grey(0.5,0.2),
+  #             fill = grey(0.5,0.1)) +
   # rug marks for holidays
   geom_rug(
     aes(date),

@@ -63,7 +63,7 @@ source("R/macrodistancing_change.R")
 # read in the full linelist
 linelist_full <- load_linelist(use_vic = FALSE,
                                use_nsw = TRUE,
-                               date = as_date("2022-12-08"))
+                               date = as_date("2023-02-16"))
 
 #read in the last 6 months only updates
 linelist <- load_linelist(use_vic = FALSE, use_nsw = FALSE) 
