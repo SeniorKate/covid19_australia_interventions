@@ -5525,9 +5525,13 @@ get_qld_summary_data <- function(file = NULL,
 }
 
 #get act summary data for the pre-nindss spike period
-get_act_summary_data <- function(){
+get_act_summary_data <- function(use_RDS = TRUE){
   
-  
+  if (use_RDS) {
+    file <- readRDS("outputs/act_issue_period_data.RDS")
+    return(file)
+  } else {
+    
   filepath <- "~/not_synced/PCR and RAT Breakdown (24 hour totals).xlsx"
   
   
@@ -5585,7 +5589,8 @@ get_act_summary_data <- function(){
            date_confirmation <= as.Date("2022-03-28")) %>% 
     rename(date = date_confirmation,
            cases = daily_notification)
-
+  }
+  
 }
 
 
