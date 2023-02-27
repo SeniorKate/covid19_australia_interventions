@@ -4667,7 +4667,8 @@ get_nndss_linelist <- function(
     missing_location_assumption = "local",
     #missing_location_assumption = "missing",
     location_conflict_assumption = "local",
-    preprocessed = NULL
+    preprocessed = NULL,
+    use_notification_receive_date = FALSE
 ) {
   
   if (is.null(preprocessed)) {
@@ -4727,14 +4728,23 @@ get_nndss_linelist <- function(
   
   
   # Generate linelist data
-  linelist <- dat %>%
-    # notification receive date seems buggy, and is sometimes before the
-    # notification date and specimen collection date
-    mutate(
-      date_confirmation = pmax(NOTIFICATION_RECEIVE_DATE,
-                               NOTIFICATION_DATE,
-                               na.rm = TRUE),
-    )
+  
+    linelist <- dat %>%
+      # notification receive date seems buggy, and is sometimes before the
+      # notification date and specimen collection date
+      mutate(
+        date_confirmation = pmax(NOTIFICATION_RECEIVE_DATE,
+                                        NOTIFICATION_DATE,
+                                        na.rm = TRUE)
+      )
+    if (!use_notification_receive_date) {
+    linelist <- linelist %>% 
+      mutate(date_confirmation = case_when(
+        STATE %in% c("ACT","SA","WA") & NOTIFICATION_DATE >= "2023-01-01" ~ NOTIFICATION_DATE,
+        TRUE ~ date_confirmation
+      ))
+  }
+
   
   
   #process test_type if applicable
@@ -5980,9 +5990,14 @@ reff_model_data <- function(
     #multiply detection by ascertainment
     
     #get latest ascertainment matrix
-    CAR_matrix <- get_CAR_matrix(CAR_time_point = read_csv("outputs/at_least_one_sym_states_central_smoothed.csv"),
-                                 date = full_dates, 
-                                 state = states)
+    ascertainment_estimates <- get_CAR_matrix(
+      date = full_dates, 
+      state = states,
+      linelist = linelist,
+      completion_prob_mat = completion_prob_mat,
+      detection_cutoff = detection_cutoff)
+    
+    CAR_matrix <- ascertainment_estimates$CAR_matrix
     
     detection_prob_mat <- completion_prob_mat * CAR_matrix
   } else {
@@ -13941,57 +13956,242 @@ impute_many_onsets <- function(
 
 
 # function to get CAR time point estimates, smooth it, and turn into matrix
-get_CAR_matrix <- function(CAR_time_point = read_csv("outputs/at_least_one_sym_states_central_smoothed.csv"),
-                           dates = full_dates, 
+get_CAR_matrix <- function(dates = full_dates, 
                            states = states,
-                           last_perfection_ascertainment_date = as_date("2021-11-01")) {
+                           last_perfection_ascertainment_date = as_date("2021-11-01"),
+                           last_PCR_available_date = as_date("2022-12-31"),
+                           PCR_exception_state = "NSW",
+                           linelist = linelist,
+                           completion_prob_mat = completion_prob_mat,
+                           detection_cutoff = detection_cutoff) {
   
-  CAR_time_point <- CAR_time_point %>% 
-    select(state,date,fitted_point4) %>% 
-    rename("test_prob_given_symptom" = fitted_point4) %>% 
-    mutate(test_prob_given_infection = test_prob_given_symptom * 0.75 * 0.01) #scale for percentage
-  
-  #make smooth df
-  CAR_smooth <- tibble(date = rep(dates,
-                                  length(states)),
-                       state = rep(states,
-                                   each = length(dates))
+  total_estimate <- list.files(
+    "outputs",
+    pattern = "at_least_one_sym_states_central_smoothed_20",
+    full.names = TRUE
   )
   
-  CAR_smooth <- left_join(CAR_smooth,CAR_time_point)
+  file_dates <- total_estimate %>%
+    substr(50, 59) %>%
+    as.Date(format = "%Y-%m-%d")
   
-  #maybe no use conditional on symptom column for now
-  CAR_smooth <- CAR_smooth %>% select(-test_prob_given_symptom)
+  latest <- which.max(file_dates)
+  total_estimate <- total_estimate[latest]
+  #########
   
-  #hack in 1s for Delta period
-  CAR_smooth <- CAR_smooth %>% 
-    mutate(test_prob_given_infection = 
-             case_when(date <= last_perfection_ascertainment_date ~ 1,
-                       TRUE ~ test_prob_given_infection))
+  PCR_estimate <- list.files(
+    "outputs",
+    pattern = "at_least_one_sym_states_central_smoothed_PCR",
+    full.names = TRUE
+  )
   
-  #hack in constant for the present period
-  CAR_smooth <- CAR_smooth %>% 
-    group_by(state) %>% 
-    mutate(test_prob_given_infection = 
-             case_when(date >= as_date("2022-09-21") ~ replace_na(test_prob_given_infection,
-                                                                  test_prob_given_infection[date == as_date("2022-09-21")]),
-                       TRUE ~ test_prob_given_infection))
+  file_dates <- PCR_estimate %>%
+    substr(60, 69) %>%
+    as.Date(format = "%Y-%m-%d")
   
-  #smooth
-  CAR_smooth <- CAR_smooth %>% 
-    group_by(state) %>% 
-    mutate(test_prob_given_infection = zoo::na.approx(test_prob_given_infection))
+  latest <- which.max(file_dates)
+  PCR_estimate <- PCR_estimate[latest]
   
+  #####
+  RAT_estimate <- list.files(
+    "outputs",
+    pattern = "at_least_one_sym_states_central_smoothed_RAT",
+    full.names = TRUE
+  )
   
-  # CAR_smooth %>% filter(date > as_date("2021-11-01")) %>% 
-  #   ggplot(aes(x = date,
-  #              y = test_prob_given_infection)) + 
-  #   geom_line() + 
-  #   facet_wrap(~state,scales = "free")
+  file_dates <- RAT_estimate %>%
+    substr(60, 69) %>%
+    as.Date(format = "%Y-%m-%d")
   
-  #get matrix form
-  CAR_smooth_mat <- CAR_smooth %>% 
-    pivot_wider(values_from = test_prob_given_infection,
-                names_from = state) %>% 
-    select(-date) %>% as.matrix()
+  latest <- which.max(file_dates)
+  RAT_estimate <- RAT_estimate[latest]
+  
+  ######### RAT reporting given test
+  RAT_report_estimate <- list.files(
+    "outputs",
+    pattern = "report_positive_rat_state_aggregate4weeks_",
+    full.names = TRUE
+  )
+  
+  file_dates <- RAT_report_estimate %>%
+    substr(51, 60) %>%
+    as.Date(format = "%Y-%m-%d")
+  
+  latest <- which.max(file_dates)
+  RAT_report_estimate <- RAT_report_estimate[latest] 
+  
+  RAT_report_estimate <- RAT_report_estimate %>% 
+    read_csv() %>% 
+    select(date,state,percentage) %>% 
+    mutate(report_prob_given_test = `percentage` * 0.01) %>% 
+    select(-percentage)
+    
+  CAR_time_point <- total_estimate %>% read_csv() %>% 
+    select(state,date,fitted_point4) %>% 
+    rename("test_prob_given_symptom" = fitted_point4) %>% 
+    mutate(test_prob_given_infection = test_prob_given_symptom * 0.75 * 0.01)
+  
+    CAR_time_point_RAT <- RAT_estimate %>% read_csv() %>% 
+      select(state,date,fitted_point4) %>% 
+      rename("test_prob_given_symptom" = fitted_point4) %>% 
+      mutate(test_prob_given_infection = test_prob_given_symptom * 0.75 * 0.01)
+    
+    
+    #make smooth df
+    CAR_smooth_base <- tibble(date = rep(dates,
+                                    length(states)),
+                         state = rep(states,
+                                     each = length(dates))
+    )
+    
+    #join in the estimtates
+    CAR_smooth <- left_join(CAR_smooth_base,CAR_time_point)
+    
+    
+    #remove conditional on symptom column since it's linearly scaled from infection
+    CAR_smooth <- CAR_smooth %>% select(-test_prob_given_symptom)
+    
+    #hack in 1s for Delta period
+    CAR_smooth <- CAR_smooth %>% 
+      mutate(test_prob_given_infection = 
+               case_when(
+                 date <= last_perfection_ascertainment_date ~ 1,
+                 TRUE ~ test_prob_given_infection)
+             )
+    
+    #interpolate NAs and repeat forward last survey result
+    CAR_smooth <- CAR_smooth %>%
+      group_by(state) %>%
+      mutate(test_prob_given_infection = 
+               zoo::na.approx(test_prob_given_infection,
+                              na.rm = FALSE),
+             test_prob_given_infection = 
+               zoo::na.locf(test_prob_given_infection,
+                            na.rm = FALSE,
+                            fromLast = FALSE)
+             ) %>% 
+      rename(CAR = test_prob_given_infection)
+    
+    
+########
+    #for RAT only CAR
+    CAR_smooth_RAT <- left_join(CAR_smooth_base,
+                                CAR_time_point_RAT) %>% 
+      left_join(RAT_report_estimate) # add in report prob
+    
+    #remove conditional on symptom column since it's linearly scaled from infection
+    CAR_smooth_RAT <- CAR_smooth_RAT %>% 
+      select(-test_prob_given_symptom)
+    
+
+    #hack in 1s for Delta period
+    #unused for this approach but coding in just in case
+    CAR_smooth_RAT <- CAR_smooth_RAT %>% 
+      mutate(test_prob_given_infection = 
+               case_when(date <= last_perfection_ascertainment_date ~ 1,
+                         TRUE ~ test_prob_given_infection),
+             report_prob_given_test = 
+               case_when(date <= last_perfection_ascertainment_date ~ 1,
+                         TRUE ~ report_prob_given_test))
+    
+    #interpolate NAs and repeat forward last survey result
+    CAR_smooth_RAT <- CAR_smooth_RAT %>%
+      group_by(state) %>%
+      mutate(test_prob_given_infection = 
+               zoo::na.approx(test_prob_given_infection,
+                              na.rm = FALSE),
+             test_prob_given_infection = 
+               zoo::na.locf(test_prob_given_infection,
+                            na.rm = FALSE,
+                            fromLast = FALSE),
+             report_prob_given_test = 
+               zoo::na.approx(report_prob_given_test,
+                              na.rm = FALSE),
+             report_prob_given_test = 
+               zoo::na.locf(report_prob_given_test,
+                            na.rm = FALSE,
+                            fromLast = FALSE)
+      )
+    
+    
+
+    #count daily RAT and PCR
+    daily_case_count <- linelist %>% 
+      mutate(count = 1)  %>% 
+      group_by(state,date,test_type,.drop = FALSE) %>%
+      summarise(n_total = sum(count)) 
+    
+    #adjust RAT reported cases by CAR
+    CAR_smooth_RAT <- CAR_smooth_RAT %>% 
+      left_join(daily_case_count) %>% 
+      mutate(n_total_adjusted = case_when(test_type == "PCR" ~ n_total,
+                                 test_type == "RAT" ~ n_total/test_prob_given_infection/report_prob_given_test))
+    
+    #sum daily totals
+    CAR_smooth_RAT <- CAR_smooth_RAT %>% 
+      group_by(state,date,.drop = FALSE) %>%
+      summarise(n_total = sum(n_total),
+                n_total_adjusted = sum(n_total_adjusted)) %>% 
+      mutate(CAR = n_total/n_total_adjusted,
+             CAR = zoo::na.locf(CAR,na.rm = FALSE,fromLast = TRUE),
+             CAR = zoo::na.locf(CAR,na.rm = FALSE,fromLast = FALSE),
+             CAR = zoo::na.approx(CAR,na.rm = FALSE)) #remove any remaining NA
+    
+    
+    
+    #join the regular method CAR with the RAT only CAR for periods when seeking
+    #a PCR test is no longer widely available
+    
+    CAR_smooth_full <- CAR_smooth %>% 
+      filter(date <= last_PCR_available_date | state %in% PCR_exception_state)
+    CAR_smooth_RAT <- CAR_smooth_RAT %>% 
+      filter(date > last_PCR_available_date & !(state %in% PCR_exception_state))
+    
+    CAR_smooth_full <- CAR_smooth_full %>% 
+      bind_rows(CAR_smooth_RAT %>% 
+      select(-n_total,-n_total_adjusted)) 
+    
+    #reset row order to match the matrix
+    CAR_smooth_full <- CAR_smooth_base %>% 
+      left_join(CAR_smooth_full)
+    
+    #get matrix form
+    CAR_smooth_mat <- CAR_smooth_full %>% 
+      select(date,state,CAR) %>% 
+      pivot_wider(values_from = CAR,
+                  names_from = state) %>% 
+      select(-date) %>% as.matrix()
+    
+    #hold CAR constant for dates with insufficient detection probability, this
+    #is necessary because CAR depends on PCR/RAT ratio in the case count, so
+    #with incomplete reporting it is unreliable
+    CAR_smooth_mat[completion_prob_mat < detection_cutoff] <- NA
+    CAR_smooth_mat[] <- zoo::na.locf(CAR_smooth_mat[],na.rm = FALSE)
+    
+    #save a diagnostic plot
+    CAR_smooth_full_plot <- CAR_smooth_full %>% 
+      mutate(CAR = as.vector(CAR_smooth_mat))
+    
+    
+    CAR_smooth_full_plot %>% 
+      rename(RAT_only = CAR) %>% 
+      left_join(CAR_smooth) %>% 
+      rename(total = CAR) %>% 
+      pivot_longer(cols = c(RAT_only,total),
+                   values_to = "CAR",
+                   names_to = "method") %>% 
+      filter(date > as_date("2022-12-25")) %>%
+      ggplot(aes(x = date,
+                 y = CAR,
+                col = method)) +
+      geom_line() + 
+      scale_y_continuous(limits = c(0,0.35)) + 
+      facet_wrap(~state,scales = "fixed",ncol = 2)
+    
+    ggsave("outputs/figures/CAR_latest.png", bg = 'white',height = 5,width = 9)
+    
+    
+    return(list(CAR_matrix = CAR_smooth_mat))
+
+
 }
