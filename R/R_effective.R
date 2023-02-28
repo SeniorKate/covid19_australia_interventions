@@ -203,27 +203,27 @@ reff_plotting(
   mobility_extrapolation_rectangle = FALSE
 )
 
-# projection plots 
-reff_plotting(
-  refitted_model,  
-  dir = "outputs/projection",
-  max_date = refitted_model$data$dates$latest_project,
-  mobility_extrapolation_rectangle = FALSE,
-  projection_date = refitted_model$data$dates$latest_mobility,
-  sims = sims
-)
-
-# 6-month projection plots
-reff_plotting(
-  refitted_model,
-  dir = "outputs/projection",
-  subdir = "figures/six_month",
-  min_date = NA,
-  max_date = refitted_model$data$dates$latest_project,
-  mobility_extrapolation_rectangle = FALSE,
-  projection_date = refitted_model$data$dates$latest_mobility,
-  sims = sims
-)
+# # projection plots 
+# reff_plotting(
+#   refitted_model,  
+#   dir = "outputs/projection",
+#   max_date = refitted_model$data$dates$latest_project,
+#   mobility_extrapolation_rectangle = FALSE,
+#   projection_date = refitted_model$data$dates$latest_mobility,
+#   sims = sims
+# )
+# 
+# # 6-month projection plots
+# reff_plotting(
+#   refitted_model,
+#   dir = "outputs/projection",
+#   subdir = "figures/six_month",
+#   min_date = NA,
+#   max_date = refitted_model$data$dates$latest_project,
+#   mobility_extrapolation_rectangle = FALSE,
+#   projection_date = refitted_model$data$dates$latest_mobility,
+#   sims = sims
+# )
 
 
 # produce simulations where proportion of variant is constant
