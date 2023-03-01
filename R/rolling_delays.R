@@ -126,7 +126,7 @@ delays_from_onset_NCIMS[delays_from_onset_NCIMS$date >= "2021-12-01" &
   delays_from_onset_NCIMS[rep(which(delays_from_onset_NCIMS$date >= "2021-12-01" &
                                       delays_from_onset_NCIMS$state == "NSW"),each = 7),3:5]
 
-saveRDS(delays_from_onset_NCIMS, "outputs/delays_from_onset_cdfs.RDS")
+saveRDS(delays_from_onset_NCIMS, "outputs/delay_from_onset_cdfs.RDS")
 
 
 p <- delays_from_onset_NCIMS %>%

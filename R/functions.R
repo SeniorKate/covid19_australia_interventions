@@ -14161,40 +14161,40 @@ get_CAR_matrix <- function(dates = full_dates,
       left_join(CAR_smooth_full)
     
     #get matrix form
-    CAR_smooth_mat <- CAR_smooth_full %>% 
+    CAR_smooth_mat <- CAR_smooth %>% 
       select(date,state,CAR) %>% 
       pivot_wider(values_from = CAR,
                   names_from = state) %>% 
       select(-date) %>% as.matrix()
     
-    #hold CAR constant for dates with insufficient detection probability, this
-    #is necessary because CAR depends on PCR/RAT ratio in the case count, so
-    #with incomplete reporting it is unreliable
-    CAR_smooth_mat[completion_prob_mat < detection_cutoff] <- NA
-    CAR_smooth_mat[] <- zoo::na.locf(CAR_smooth_mat[],na.rm = FALSE)
-    
-    #save a diagnostic plot
-    CAR_smooth_full_plot <- CAR_smooth_full %>% 
-      mutate(CAR = as.vector(CAR_smooth_mat))
-    
-    
-    CAR_smooth_full_plot %>% 
-      rename(RAT_only = CAR) %>% 
-      left_join(CAR_smooth) %>% 
-      rename(total = CAR) %>% 
-      pivot_longer(cols = c(RAT_only,total),
-                   values_to = "CAR",
-                   names_to = "method") %>% 
-      filter(date > as_date("2022-12-25")) %>%
-      ggplot(aes(x = date,
-                 y = CAR,
-                col = method)) +
-      geom_line() + 
-      scale_y_continuous(limits = c(0,0.35)) + 
-      facet_wrap(~state,scales = "fixed",ncol = 2)
-    
-    ggsave("outputs/figures/CAR_latest.png", bg = 'white',height = 5,width = 9)
-    
+    # #hold CAR constant for dates with insufficient detection probability, this
+    # #is necessary because CAR depends on PCR/RAT ratio in the case count, so
+    # #with incomplete reporting it is unreliable
+    # CAR_smooth_mat[completion_prob_mat < detection_cutoff] <- NA
+    # CAR_smooth_mat[] <- zoo::na.locf(CAR_smooth_mat[],na.rm = FALSE)
+    # 
+    # #save a diagnostic plot
+    # CAR_smooth_full_plot <- CAR_smooth_full %>% 
+    #   mutate(CAR = as.vector(CAR_smooth_mat))
+    # 
+    # 
+    # CAR_smooth_full_plot %>% 
+    #   rename(RAT_only = CAR) %>% 
+    #   left_join(CAR_smooth) %>% 
+    #   rename(total = CAR) %>% 
+    #   pivot_longer(cols = c(RAT_only,total),
+    #                values_to = "CAR",
+    #                names_to = "method") %>% 
+    #   filter(date > as_date("2022-12-25")) %>%
+    #   ggplot(aes(x = date,
+    #              y = CAR,
+    #             col = method)) +
+    #   geom_line() + 
+    #   scale_y_continuous(limits = c(0,0.35)) + 
+    #   facet_wrap(~state,scales = "fixed",ncol = 2)
+    # 
+    # ggsave("outputs/figures/CAR_latest.png", bg = 'white',height = 5,width = 9)
+    # 
     
     return(list(CAR_matrix = CAR_smooth_mat))
 
