@@ -9,7 +9,7 @@ linelist <- readRDS(paste0("outputs/",get_latest_linelist()))
 plot_linelist_by_confirmation_date(linelist = linelist)
 
 #load all summary format data
-summary_data <- get_summary_data()
+summary_data <- get_summary_data(states = "VIC")
 
 #visually check for issues
 summary_data %>% filter(date>=(max(summary_data$date)-months(1))) %>% 
@@ -27,6 +27,8 @@ summary_data %>% filter(date>=(max(summary_data$date)-months(1))) %>%
   geom_col(position = "dodge") + 
   facet_wrap(~state,scales = "free")
 
+#get qld for the period where NINDSS had RAT duplications
+qld_issue_period <- get_qld_summary_data()
 
 #get act for the period where NINDSS had a rat spike issue
 act_issue_period <- get_act_summary_data()
@@ -34,7 +36,7 @@ act_issue_period <- get_act_summary_data()
 #replace linelist components for states with summary data
 linelist <- replace_linelist_bits_with_summary(linelist,
                                                summary_data,
-                                               states_select = c("VIC","QLD"),
+                                               states_select = c("VIC"),
                                                start = as_date("2022-01-06"),
                                                end = NULL)
 
@@ -43,6 +45,12 @@ linelist <- replace_linelist_bits_with_summary(linelist,
                                                states_select = c("ACT"),
                                                start = as_date("2022-01-06"),
                                                end = as_date("2022-03-28"))
+
+linelist <- replace_linelist_bits_with_summary(linelist,
+                                               qld_issue_period,
+                                               states_select = c("QLD"),
+                                               start = as_date("2022-01-06"),
+                                               end = as_date("2023-02-28"))
 
 #check if ACT is properly joined
 plot_linelist_by_confirmation_date(linelist = linelist, date_cutoff = "2022-01-01")
@@ -53,13 +61,32 @@ plot_linelist_by_confirmation_date(linelist = linelist)
 ggsave("outputs/figures/case_count_by_confirmation.png", bg = 'white',height = 5,width = 9)
 
 
+#impute correct confirmation dates for NSW RAT weekend cases dumped on Monday
+nsw_wrong_RATs_period <- seq.Date(as.Date("2023-02-25"),max(linelist$date_confirmation),by = "day")
+
+mondays_to_fix <- nsw_wrong_RATs_period[wday(nsw_wrong_RATs_period) == 2]
+sundays_to_fix <- nsw_wrong_RATs_period[wday(nsw_wrong_RATs_period) == 1]
+saturdays_to_fix <- nsw_wrong_RATs_period[wday(nsw_wrong_RATs_period) == 7]
+
+for (week_iter in seq_along(mondays_to_fix)) {
+  
+  linelist <- stagger_dates_in_linelist(linelist = linelist,
+                                        state_select = "NSW",
+                                        test_type = "RAT",
+                                        dates_to = c(saturdays_to_fix[week_iter],sundays_to_fix[week_iter]),
+                                        date_from = mondays_to_fix[week_iter])
+  
+}
+
+
 #truncate for jurisdictions with incomplete reporting days (only PCR or RAT)
 linelist <- linelist %>% 
   group_by(date_confirmation,state) %>% 
   mutate(type_count = length(unique(test_type))) %>% 
   ungroup() %>% 
   filter(type_count == 2 | 
-         date_confirmation <= (max(linelist$date_confirmation) - weeks(1))) %>%
+         date_confirmation <= (max(linelist$date_confirmation) - weeks(1)) |
+         state == "NSW") %>%
   #the date filter is necessary to avoid removing pre RAT era cases
   select(!type_count)
 #check if any last day appears to have incomplete reporting
@@ -68,7 +95,7 @@ plot_linelist_by_confirmation_date(linelist = linelist)
 #drop the latest reporting day for some jurisdictions if incomplete 
 #typically this is SA due to data uploaded on extraction day
 linelist <- linelist %>% 
-  filter(date_confirmation < max(linelist$date_confirmation) | state != "SA")
+  filter(date_confirmation < max(linelist$date_confirmation) | state != "QLD")
 
 plot_linelist_by_confirmation_date(linelist = linelist)
 #record the days of lag for each jurisdiction
