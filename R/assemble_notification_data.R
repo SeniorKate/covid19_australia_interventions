@@ -17,15 +17,15 @@ summary_data %>% filter(date>=(max(summary_data$date)-months(1))) %>%
   geom_col(position = "dodge") + 
   facet_wrap(~state,scales = "free")
 
-#remove last day of data in Qld or Vic if it is incomplete 
-summary_data <- summary_data %>% 
-  filter(date < max(summary_data$date) | state == "VIC")
+# #remove last day of data in Qld or Vic if it is incomplete 
+# summary_data <- summary_data %>% 
+#   filter(date < max(summary_data$date) | state == "VIC")
 
-#visually check for issues again
-summary_data %>% filter(date>=(max(summary_data$date)-months(1))) %>% 
-  ggplot(aes(x = date, y = cases, fill = test_type)) + 
-  geom_col(position = "dodge") + 
-  facet_wrap(~state,scales = "free")
+# #visually check for issues again
+# summary_data %>% filter(date>=(max(summary_data$date)-months(1))) %>% 
+#   ggplot(aes(x = date, y = cases, fill = test_type)) + 
+#   geom_col(position = "dodge") + 
+#   facet_wrap(~state,scales = "free")
 
 #get qld for the period where NINDSS had RAT duplications
 qld_issue_period <- get_qld_summary_data()
@@ -95,7 +95,7 @@ plot_linelist_by_confirmation_date(linelist = linelist)
 #drop the latest reporting day for some jurisdictions if incomplete 
 #typically this is SA due to data uploaded on extraction day
 linelist <- linelist %>% 
-  filter(date_confirmation < max(linelist$date_confirmation) | state != "QLD")
+  filter(date_confirmation < (max(linelist$date_confirmation)-1) | state != "QLD")
 
 plot_linelist_by_confirmation_date(linelist = linelist)
 #record the days of lag for each jurisdiction

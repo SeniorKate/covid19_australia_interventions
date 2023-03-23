@@ -5729,6 +5729,7 @@ get_nsw_linelist <- function (
         INTERVIEWED_DATE = col_nsw_date(),
         S_gene_result_date = col_nsw_date(),
         Omicron_Category = col_factor(),
+        SPECIMEN_DATE = col_nsw_date(),
         TEST_TYPE = col_character()
       )
     ) %>%
@@ -5742,7 +5743,8 @@ get_nsw_linelist <- function (
         "DATE_ISOLATION_BEGAN",
         "SETTING_OF_TRANSMISSION_DATE",
         "INTERVIEWED_DATE",
-        "S_gene_result_date"
+        "S_gene_result_date",
+        "SPECIMEN_DATE"
       )),
       clean_date
     )
@@ -5778,7 +5780,8 @@ get_nsw_linelist <- function (
       report_delay = NA,
       date_linelist = date,
       interstate_import = FALSE,
-      test_type = TEST_TYPE
+      test_type = TEST_TYPE,
+      specimen_date = SPECIMEN_DATE
     )
   
   if(nindss_compatible){
@@ -10050,7 +10053,7 @@ fit_survey_gam <- function(
   m <- mgcv::gam(
     cbind(count, I(respondents - count)) ~ s(date_num) + intervention_stage,
     select = TRUE,
-    family = stats::binomial,optimizer = c('outer',"optim")
+    family = stats::binomial#,optimizer = c('outer',"optim")
   )
   
   
