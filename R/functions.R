@@ -5764,7 +5764,7 @@ get_nsw_linelist <- function (
         TRUE ~ SYMPTOM_ONSET_DATE
       ),
       #date_onset = NA,
-      date_detection = NA,
+      date_detection = SPECIMEN_DATE,
       date_confirmation = EARLIEST_CONFIRMED_OR_PROBABLE,
       date_quarantine = DATE_ISOLATION_BEGAN,
       state = "NSW",
@@ -5780,8 +5780,7 @@ get_nsw_linelist <- function (
       report_delay = NA,
       date_linelist = date,
       interstate_import = FALSE,
-      test_type = TEST_TYPE,
-      specimen_date = SPECIMEN_DATE
+      test_type = TEST_TYPE
     )
   
   if(nindss_compatible){
@@ -14235,10 +14234,18 @@ stagger_dates_in_linelist <- function(linelist,
                                       state_select, 
                                       test_type_select, 
                                       dates_to, 
-                                      date_from) {
+                                      date_from,
+                                      use_delay_cdf = TRUE,
+                                      delay_cdf = NULL) {
   
   
-  #pull out the relevant bits of linelist, ie within 6 months of the spike date
+
+  
+  
+  if (!use_delay_cdf) {  
+    #dow method
+    
+    #pull out the relevant bits of linelist, ie within 6 months of the spike date
   dow_bit <- linelist %>% 
     filter(state == state_select, 
            date_confirmation >= date_from - months(6),
@@ -14311,6 +14318,65 @@ stagger_dates_in_linelist <- function(linelist,
   corrected_days <- round(n_cases_to_correct*dow_target_days)
   #deal with any rounding problems
   corrected_days[length(corrected_days)] <- n_cases_to_correct - sum(corrected_days[-length(corrected_days)])
+  
+  
+  } else {
+    #cdf method
+    #calculate delay cdf 
+
+    if (is.null(delay_cdf)) {
+      #handle calculation period by exceptions for now
+      if (state_select == "NSW" & test_type_select == "RAT") {
+        delay_bit <- linelist %>% 
+          filter(state == state_select, 
+                 date_detection >= "2023-01-01" & date_detection <= "2023-02-20",
+                 test_type == test_type_select)
+        
+        delay_bit <- delay_bit %>% 
+          mutate(specimen_to_notification_delay = date_confirmation - date_detection,
+                 specimen_to_notification_delay = as.numeric(specimen_to_notification_delay))
+        
+        #remove unreliable delays
+        delay_bit <- delay_bit %>% 
+          mutate(specimen_to_notification_delay = case_when(
+            specimen_to_notification_delay > 99 ~ 99,
+            specimen_to_notification_delay < 0 ~ 0,
+            TRUE ~ specimen_to_notification_delay
+          ))
+        
+        #rid NAs
+        delay_bit <- delay_bit %>% 
+          filter(!is.na(specimen_to_notification_delay))
+        
+        delay_cdf <- ecdf(delay_bit$specimen_to_notification_delay)
+        
+      }
+    }
+    
+    #find plausible specimen date that could have been notified in target dates
+    possible_specimen_dates <- seq(min(date_from,dates_to) - 5,
+                                   max(date_from,dates_to))
+
+    #set possible delays
+    delays <- 0:5
+    # probability of being notified this many days later (probability of notification
+    # by this day, minus probability of notification by the previous day)
+    notif_from <- delay_cdf(delays - 1)
+    notif_to <- delay_cdf(delays)
+    prob <- notif_from - notif_to
+    
+    # normalise to get probabilities of different delays
+    prob <- prob / sum(prob)
+    
+    # simulate delays
+    expected_delays <- round(sum(delays * prob))
+    
+    # subtract to get expected date of symptom onset
+    onset_dates <- confirmation_date - sim_delays
+    return(onset_dates)
+    
+    
+  }
   
   
   #correct for the cases
