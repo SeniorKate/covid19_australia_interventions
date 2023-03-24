@@ -14354,26 +14354,71 @@ stagger_dates_in_linelist <- function(linelist,
     }
     
     #find plausible specimen date that could have been notified in target dates
-    possible_specimen_dates <- seq(min(date_from,dates_to) - 5,
-                                   max(date_from,dates_to))
+    possible_specimen_dates <- seq.Date(min(date_from,dates_to) - 10,
+                                   max(date_from,dates_to),by = "day")
 
     #set possible delays
-    delays <- 0:5
+    delays <- 0:10
     # probability of being notified this many days later (probability of notification
     # by this day, minus probability of notification by the previous day)
     notif_from <- delay_cdf(delays - 1)
     notif_to <- delay_cdf(delays)
-    prob <- notif_from - notif_to
+    prob <- notif_to - notif_from
     
     # normalise to get probabilities of different delays
     prob <- prob / sum(prob)
     
     # simulate delays
-    expected_delays <- round(sum(delays * prob))
     
-    # subtract to get expected date of symptom onset
-    onset_dates <- confirmation_date - sim_delays
-    return(onset_dates)
+    #init empty tibble for counts
+    imputed_notif_count_with_date <- tibble(
+      imputed_notif_count = NULL,
+      date_confirmation = NULL
+    )
+    
+    for (specimen_date in seq_along(possible_specimen_dates)) {
+      
+      specimen_count <- linelist %>% 
+        filter(state == state_select, 
+               test_type == test_type_select,
+               date_detection == possible_specimen_dates[specimen_date]) %>% 
+        nrow()
+      
+      imputed_notif_count <- specimen_count * prob
+      
+      this_imputed_notif_count_with_date <- tibble(
+        imputed_notif_count = imputed_notif_count,
+        date_confirmation = seq.Date(possible_specimen_dates[specimen_date],
+                                     possible_specimen_dates[specimen_date] + days(length(prob)-1), #-1 because we count day 0 too
+                                     by = "day")
+      )
+      #pull out the  days of interest
+      this_imputed_notif_count_with_date <- this_imputed_notif_count_with_date %>% 
+        filter(date_confirmation %in% c(date_from,dates_to))
+      
+      imputed_notif_count_with_date <- imputed_notif_count_with_date %>% 
+        bind_rows(this_imputed_notif_count_with_date)
+      
+    }
+    #sum per day
+    expected_notif_count <- imputed_notif_count_with_date %>% 
+      group_by(date_confirmation) %>% 
+      summarise(notif_count = sum(imputed_notif_count))
+    
+    #get ratio
+    expected_notif_ratio <- expected_notif_count$notif_count/(sum(expected_notif_count$notif_count))
+    
+    #get # of cases to disaggregate
+    n_cases_to_correct <- linelist %>% 
+      filter(date_confirmation == date_from,
+             test_type == test_type_select,
+             state == state_select) %>% 
+      nrow()
+    
+    corrected_days <- round(n_cases_to_correct*expected_notif_ratio)
+    #deal with any rounding problems
+    corrected_days[length(corrected_days)] <- n_cases_to_correct - sum(corrected_days[-length(corrected_days)])
+
     
     
   }
