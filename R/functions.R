@@ -14217,16 +14217,23 @@ get_CAR_matrix <- function(dates = full_dates,
 }
 
 # function to spread out cases notified on one day to several days, according to
-# estimated day of week ratio. The purpose of this function is to correct for
-# situations eg where cases reported over the weekend were notified on Monday,
-# thus creating an artificial spike due to the structural issue in delay. In
-# this circumstance, if we know or can assume that the Monday spike is genuinely
-# the accumulation of cases that should have been reported on the weekend, we
-# can use day-of-week relationship learned for that state and test type to
-# roughly spread the cases across the affected days, imputing what it might have
-# looked like. Note that the case trajectory over time is assumed to be only
-# affected by day of week effect here, which is only appropriate over short
-# amount of time, and when R_eff is not too far from 1.
+# an estimated ratio. The purpose of this function is to correct for situations
+# eg where cases reported over the weekend were notified on Monday, thus
+# creating an artificial spike due to the structural issue in delay. In this
+# circumstance, if we know or can assume that the Monday spike is genuinely the
+# accumulation of cases that should have been reported on the weekend, we can
+# use an informed ratio of cases over the affected days for that state and test
+# type to roughly spread the cases across the affected days, imputing what it
+# might have looked like. Note that when using day of week to estimate ratio,
+# the case trajectory over time is assumed to be only affected by day of week
+# effect here, which is only appropriate over short amount of time, and when
+# R_eff is not too far from 1.
+
+# by default this function learns the ratio of cases on the affected days by
+# imputing notification dates from known specimen dates, and an estimated
+# specimen to notification delay. This requires knowledge of specimen dates
+# (coded as date_detection) and a reliable estimate of the delay - do only apply
+# the method for states whose data we know to be reliable.
 
 # this function takes the linelist and changes the dates in it, so outputs a
 # linelist as well
@@ -14244,8 +14251,11 @@ stagger_dates_in_linelist <- function(linelist,
   
   if (!use_delay_cdf) {  
     #dow method
-    
+    #deprecated, keep for archival purpose only
+    warning("Using day of week disaggregation method! NOT recommended!")
     #pull out the relevant bits of linelist, ie within 6 months of the spike date
+    #as time goes on this erroneously include the spike period too
+    #should change if need to use this method
   dow_bit <- linelist %>% 
     filter(state == state_select, 
            date_confirmation >= date_from - months(6),
@@ -14261,7 +14271,7 @@ stagger_dates_in_linelist <- function(linelist,
   
   dow <- lubridate::wday(dc)
   
-  
+  #make df for model
   dow_effect <- dow_bit %>% 
     mutate(count = 1) %>% 
     group_by(state,date_confirmation) %>% 
@@ -14274,17 +14284,16 @@ stagger_dates_in_linelist <- function(linelist,
   
   week_count <- week_count[dc_tf]
   
-  #make df for model
   dow_effect <- dow_effect %>% 
     mutate(dow = dow,
            week_count = week_count)
   
-  #model dow effect and predict
+  #model dow effect
   m <- glm(data = dow_effect,
            count ~ factor(week_count) + factor(dow),
            family = stats::poisson
   )
-  
+  #predict DoW multiplier
   trend_estimate <- tibble(
     week_count = 1,
     dow = 1:7
@@ -14308,13 +14317,13 @@ stagger_dates_in_linelist <- function(linelist,
   
   #rearrange to match the day choice
   dow_target_days <- dow_target_days[match(target_days,names(dow_target_days))]
-  
+  #get ratio
   dow_target_days <- dow_target_days/sum(dow_target_days)
-  
+  #get # of cases to disaggregate
   n_cases_to_correct <- dow_bit %>% 
     filter(date_confirmation == date_from) %>% 
     nrow()
-  
+  #use ratio to disaggregate
   corrected_days <- round(n_cases_to_correct*dow_target_days)
   #deal with any rounding problems
   corrected_days[length(corrected_days)] <- n_cases_to_correct - sum(corrected_days[-length(corrected_days)])
@@ -14327,11 +14336,12 @@ stagger_dates_in_linelist <- function(linelist,
     if (is.null(delay_cdf)) {
       #handle calculation period by exceptions for now
       if (state_select == "NSW" & test_type_select == "RAT") {
+        #pull out the manually specified calculation period
         delay_bit <- linelist %>% 
           filter(state == state_select, 
                  date_detection >= "2023-01-01" & date_detection <= "2023-02-20",
                  test_type == test_type_select)
-        
+        #calculate delay
         delay_bit <- delay_bit %>% 
           mutate(specimen_to_notification_delay = date_confirmation - date_detection,
                  specimen_to_notification_delay = as.numeric(specimen_to_notification_delay))
@@ -14350,6 +14360,8 @@ stagger_dates_in_linelist <- function(linelist,
         
         delay_cdf <- ecdf(delay_bit$specimen_to_notification_delay)
         
+      } else {
+        stop("manually specified cdf calculation period for the currently selected state(s) and test type is not set!")
       }
     }
     
@@ -14357,7 +14369,8 @@ stagger_dates_in_linelist <- function(linelist,
     possible_specimen_dates <- seq.Date(min(date_from,dates_to) - 10,
                                    max(date_from,dates_to),by = "day")
 
-    #set possible delays
+    #set possible delays, most density should be around 1.8 so no need to impute
+    #over many days
     delays <- 0:10
     # probability of being notified this many days later (probability of notification
     # by this day, minus probability of notification by the previous day)
@@ -14369,6 +14382,8 @@ stagger_dates_in_linelist <- function(linelist,
     prob <- prob / sum(prob)
     
     # simulate delays
+    
+    #inefficient to do with for loop, can change to matrix * vector
     
     #init empty tibble for counts
     imputed_notif_count_with_date <- tibble(
@@ -14415,25 +14430,21 @@ stagger_dates_in_linelist <- function(linelist,
              state == state_select) %>% 
       nrow()
     
+    #disaggregate with ratio
     corrected_days <- round(n_cases_to_correct*expected_notif_ratio)
     #deal with any rounding problems
     corrected_days[length(corrected_days)] <- n_cases_to_correct - sum(corrected_days[-length(corrected_days)])
 
-    
-    
   }
   
   
   #correct for the cases
-  #for some reason case_when errors out
+  #for some reason case_when errors out, so use base R syntax
   linelist$date_confirmation[linelist$state %in% state_select & 
                                linelist$date_confirmation == date_from & 
                                linelist$test_type == test_type_select] <- rep(
                                  c(dates_to,date_from),
                                  corrected_days)
-  
-  
-  
   
   return(linelist)
   
