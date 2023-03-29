@@ -8063,7 +8063,7 @@ replace_linelist_bits_with_summary <- function(linelist = linelist,
 
 #plot linelist by confirmation date for quick check
 plot_linelist_by_confirmation_date <- function(linelist,
-                                               date_cutoff = max(linelist$date_confirmation) - months(1),
+                                               date_cutoff = max(linelist$date_confirmation) - days(30),
                                                selected_states = states,
                                                plot_smoothed_trend = FALSE,
                                                plot_moving_average = TRUE) {
@@ -14361,7 +14361,33 @@ stagger_dates_in_linelist <- function(linelist,
         delay_cdf <- ecdf(delay_bit$specimen_to_notification_delay)
         
       } else {
-        stop("manually specified cdf calculation period for the currently selected state(s) and test type is not set!")
+        if (state_select == "NSW" & test_type_select == "PCR") {
+          #pull out the manually specified calculation period
+          delay_bit <- linelist %>% 
+            filter(state == state_select, 
+                   date_detection >= "2023-01-01" & date_detection <= "2023-02-20",
+                   test_type == test_type_select)
+          #calculate delay
+          delay_bit <- delay_bit %>% 
+            mutate(specimen_to_notification_delay = date_confirmation - date_detection,
+                   specimen_to_notification_delay = as.numeric(specimen_to_notification_delay))
+          
+          #remove unreliable delays
+          delay_bit <- delay_bit %>% 
+            mutate(specimen_to_notification_delay = case_when(
+              specimen_to_notification_delay > 99 ~ 99,
+              specimen_to_notification_delay < 0 ~ 0,
+              TRUE ~ specimen_to_notification_delay
+            ))
+          
+          #rid NAs
+          delay_bit <- delay_bit %>% 
+            filter(!is.na(specimen_to_notification_delay))
+          
+          delay_cdf <- ecdf(delay_bit$specimen_to_notification_delay)
+        } else {
+          stop("manually specified cdf calculation period for the currently selected state(s) and test type is not set!")
+      }
       }
     }
     
