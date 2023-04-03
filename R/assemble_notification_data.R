@@ -12,7 +12,7 @@ plot_linelist_by_confirmation_date(linelist = linelist)
 summary_data <- get_summary_data(states = "VIC")
 
 #visually check for issues
-summary_data %>% filter(date>=(max(summary_data$date)-months(1))) %>% 
+summary_data %>% filter(date>=(max(summary_data$date)-days(30))) %>% 
   ggplot(aes(x = date, y = cases, fill = test_type)) + 
   geom_col(position = "dodge") + 
   facet_wrap(~state,scales = "free")
@@ -64,16 +64,40 @@ ggsave("outputs/figures/case_count_by_confirmation.png", bg = 'white',height = 5
 #impute correct confirmation dates for NSW RAT weekend cases dumped on Monday
 nsw_wrong_RATs_period <- seq.Date(as.Date("2023-02-25"),max(linelist$date_confirmation),by = "day")
 
+
 mondays_to_fix <- nsw_wrong_RATs_period[wday(nsw_wrong_RATs_period) == 2]
+tuesdays_to_fix <- nsw_wrong_RATs_period[wday(nsw_wrong_RATs_period) == 3]
 sundays_to_fix <- nsw_wrong_RATs_period[wday(nsw_wrong_RATs_period) == 1]
 saturdays_to_fix <- nsw_wrong_RATs_period[wday(nsw_wrong_RATs_period) == 7]
 
 for (week_iter in seq_along(mondays_to_fix)) {
   
+  #shift all PCR dates to Tuesday
+  linelist <- linelist %>% 
+    mutate(date_confirmation = case_when(
+      date_confirmation %in% c(saturdays_to_fix[week_iter],
+                               sundays_to_fix[week_iter],
+                               mondays_to_fix[week_iter]) & 
+        test_type == "PCR" & 
+        state == "NSW" ~ tuesdays_to_fix[week_iter],
+      TRUE ~ date_confirmation
+      )
+    )
+  
+  #shift PCR dates back in place via disaggregation
+  linelist <- stagger_dates_in_linelist(linelist = linelist,
+                                        state_select = "NSW",
+                                        test_type = "PCR",
+                                        dates_to = c(saturdays_to_fix[week_iter],
+                                                     sundays_to_fix[week_iter],
+                                                     mondays_to_fix[week_iter]),
+                                        date_from = tuesdays_to_fix[week_iter])
+  #disaggregate RAT dates
   linelist <- stagger_dates_in_linelist(linelist = linelist,
                                         state_select = "NSW",
                                         test_type = "RAT",
-                                        dates_to = c(saturdays_to_fix[week_iter],sundays_to_fix[week_iter]),
+                                        dates_to = c(saturdays_to_fix[week_iter],
+                                                     sundays_to_fix[week_iter]),
                                         date_from = mondays_to_fix[week_iter])
   
 }
@@ -95,9 +119,11 @@ plot_linelist_by_confirmation_date(linelist = linelist)
 #drop the latest reporting day for some jurisdictions if incomplete 
 #typically this is SA due to data uploaded on extraction day
 linelist <- linelist %>% 
-  filter(date_confirmation < (max(linelist$date_confirmation)-1) | state != "QLD")
+  filter(date_confirmation < (max(linelist$date_confirmation)-1) | state != "SA")
 
 plot_linelist_by_confirmation_date(linelist = linelist)
+#plot the confirmation plot again after all the fixes
+ggsave("outputs/figures/case_count_by_confirmation_post_processing.png", bg = 'white',height = 5,width = 9)
 #record the days of lag for each jurisdiction
 state_date_lag <- linelist %>% 
   group_by(state) %>% 
