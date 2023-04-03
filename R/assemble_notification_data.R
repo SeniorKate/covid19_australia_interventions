@@ -12,7 +12,7 @@ plot_linelist_by_confirmation_date(linelist = linelist)
 summary_data <- get_summary_data(states = "VIC")
 
 #visually check for issues
-summary_data %>% filter(date>=(max(summary_data$date)-months(1))) %>% 
+summary_data %>% filter(date>=(max(summary_data$date)-days(30))) %>% 
   ggplot(aes(x = date, y = cases, fill = test_type)) + 
   geom_col(position = "dodge") + 
   facet_wrap(~state,scales = "free")
@@ -77,7 +77,9 @@ for (week_iter in seq_along(mondays_to_fix)) {
     mutate(date_confirmation = case_when(
       date_confirmation %in% c(saturdays_to_fix[week_iter],
                                sundays_to_fix[week_iter],
-                               mondays_to_fix[week_iter]) & test_type == "PCR" ~ tuesdays_to_fix[week_iter],
+                               mondays_to_fix[week_iter]) & 
+        test_type == "PCR" & 
+        state == "NSW" ~ tuesdays_to_fix[week_iter],
       TRUE ~ date_confirmation
       )
     )
@@ -117,7 +119,7 @@ plot_linelist_by_confirmation_date(linelist = linelist)
 #drop the latest reporting day for some jurisdictions if incomplete 
 #typically this is SA due to data uploaded on extraction day
 linelist <- linelist %>% 
-  filter(date_confirmation < (max(linelist$date_confirmation)-1) | state != "QLD")
+  filter(date_confirmation < (max(linelist$date_confirmation)-1) | state != "SA")
 
 plot_linelist_by_confirmation_date(linelist = linelist)
 #plot the confirmation plot again after all the fixes
