@@ -72,33 +72,70 @@ saturdays_to_fix <- nsw_wrong_RATs_period[wday(nsw_wrong_RATs_period) == 7]
 
 for (week_iter in seq_along(mondays_to_fix)) {
   
-  #shift all PCR dates to Tuesday
-  linelist <- linelist %>% 
-    mutate(date_confirmation = case_when(
-      date_confirmation %in% c(saturdays_to_fix[week_iter],
-                               sundays_to_fix[week_iter],
-                               mondays_to_fix[week_iter]) & 
-        test_type == "PCR" & 
-        state == "NSW" ~ tuesdays_to_fix[week_iter],
-      TRUE ~ date_confirmation
+  #deal with easter long weekend exception
+  if (mondays_to_fix[week_iter] == "2023-04-10") {
+    #missing full RAT and partial PCR data from Good Friday to Easter Monday
+    #so include Friday to this shift, and take cases from Tuesday
+    #shift all PCR dates to Tuesday
+    linelist <- linelist %>% 
+      mutate(date_confirmation = case_when(
+        date_confirmation %in% c(as_date("2023-04-07"),
+                                 saturdays_to_fix[week_iter],
+                                 sundays_to_fix[week_iter],
+                                 mondays_to_fix[week_iter]) & 
+          test_type == "PCR" & 
+          state == "NSW" ~ tuesdays_to_fix[week_iter],
+        TRUE ~ date_confirmation
       )
-    )
-  
-  #shift PCR dates back in place via disaggregation
-  linelist <- stagger_dates_in_linelist(linelist = linelist,
-                                        state_select = "NSW",
-                                        test_type = "PCR",
-                                        dates_to = c(saturdays_to_fix[week_iter],
-                                                     sundays_to_fix[week_iter],
-                                                     mondays_to_fix[week_iter]),
-                                        date_from = tuesdays_to_fix[week_iter])
-  #disaggregate RAT dates
-  linelist <- stagger_dates_in_linelist(linelist = linelist,
-                                        state_select = "NSW",
-                                        test_type = "RAT",
-                                        dates_to = c(saturdays_to_fix[week_iter],
-                                                     sundays_to_fix[week_iter]),
-                                        date_from = mondays_to_fix[week_iter])
+      )
+    
+    #shift PCR dates back in place via disaggregation
+    linelist <- stagger_dates_in_linelist(linelist = linelist,
+                                          state_select = "NSW",
+                                          test_type = "PCR",
+                                          dates_to = c(as_date("2023-04-07"),
+                                                       saturdays_to_fix[week_iter],
+                                                       sundays_to_fix[week_iter],
+                                                       mondays_to_fix[week_iter]),
+                                          date_from = tuesdays_to_fix[week_iter])
+    #disaggregate RAT dates
+    linelist <- stagger_dates_in_linelist(linelist = linelist,
+                                          state_select = "NSW",
+                                          test_type = "RAT",
+                                          dates_to = c(as_date("2023-04-07"),
+                                                       saturdays_to_fix[week_iter],
+                                                       sundays_to_fix[week_iter],
+                                                       mondays_to_fix[week_iter]),
+                                          date_from = tuesdays_to_fix[week_iter])
+  } else {
+    #shift all PCR dates to Tuesday
+    linelist <- linelist %>% 
+      mutate(date_confirmation = case_when(
+        date_confirmation %in% c(saturdays_to_fix[week_iter],
+                                 sundays_to_fix[week_iter],
+                                 mondays_to_fix[week_iter]) & 
+          test_type == "PCR" & 
+          state == "NSW" ~ tuesdays_to_fix[week_iter],
+        TRUE ~ date_confirmation
+      )
+      )
+    
+    #shift PCR dates back in place via disaggregation
+    linelist <- stagger_dates_in_linelist(linelist = linelist,
+                                          state_select = "NSW",
+                                          test_type = "PCR",
+                                          dates_to = c(saturdays_to_fix[week_iter],
+                                                       sundays_to_fix[week_iter],
+                                                       mondays_to_fix[week_iter]),
+                                          date_from = tuesdays_to_fix[week_iter])
+    #disaggregate RAT dates
+    linelist <- stagger_dates_in_linelist(linelist = linelist,
+                                          state_select = "NSW",
+                                          test_type = "RAT",
+                                          dates_to = c(saturdays_to_fix[week_iter],
+                                                       sundays_to_fix[week_iter]),
+                                          date_from = mondays_to_fix[week_iter])
+  }
   
 }
 
@@ -119,7 +156,7 @@ plot_linelist_by_confirmation_date(linelist = linelist)
 #drop the latest reporting day for some jurisdictions if incomplete 
 #typically this is SA due to data uploaded on extraction day
 linelist <- linelist %>% 
-  filter(date_confirmation < (max(linelist$date_confirmation)) | state != "SA")
+  filter(date_confirmation < (max(linelist$date_confirmation)) | state != "QLD")
 
 plot_linelist_by_confirmation_date(linelist = linelist)
 #plot the confirmation plot again after all the fixes
