@@ -107,7 +107,45 @@ for (week_iter in seq_along(mondays_to_fix)) {
                                                        sundays_to_fix[week_iter],
                                                        mondays_to_fix[week_iter]),
                                           date_from = tuesdays_to_fix[week_iter])
-  } else {
+  } else { 
+    #deal with ANZAC day exception
+    if (mondays_to_fix[week_iter] == "2023-04-24") {
+      #missing full RAT and partial PCR data on ANZAC Tuesday
+      #so shift back from Wednesday
+      #shift all weekend PCR to Monday not Tuesday
+      linelist <- linelist %>% 
+        mutate(date_confirmation = case_when(
+          date_confirmation %in% c(saturdays_to_fix[week_iter],
+                                   sundays_to_fix[week_iter]) & 
+            test_type == "PCR" & 
+            state == "NSW" ~ mondays_to_fix[week_iter],
+          TRUE ~ date_confirmation
+          )
+        )
+        
+      
+      #shift PCR dates back in place via disaggregation
+      linelist <- stagger_dates_in_linelist(linelist = linelist,
+                                            state_select = "NSW",
+                                            test_type = "PCR",
+                                            dates_to = c(saturdays_to_fix[week_iter],
+                                                         sundays_to_fix[week_iter]),
+                                            date_from = mondays_to_fix[week_iter])
+      #disaggregate RAT dates
+      #do this for weekend and then for Tues
+      linelist <- stagger_dates_in_linelist(linelist = linelist,
+                                            state_select = "NSW",
+                                            test_type = "RAT",
+                                            dates_to = c(saturdays_to_fix[week_iter],
+                                                         sundays_to_fix[week_iter]),
+                                            date_from = mondays_to_fix[week_iter])
+      
+      linelist <- stagger_dates_in_linelist(linelist = linelist,
+                                            state_select = "NSW",
+                                            test_type = "RAT",
+                                            dates_to = c(tuesdays_to_fix[week_iter]),
+                                            date_from = as_date("2023-04-26"))
+    } else {
     #shift all PCR dates to Tuesday
     linelist <- linelist %>% 
       mutate(date_confirmation = case_when(
@@ -135,6 +173,7 @@ for (week_iter in seq_along(mondays_to_fix)) {
                                           dates_to = c(saturdays_to_fix[week_iter],
                                                        sundays_to_fix[week_iter]),
                                           date_from = mondays_to_fix[week_iter])
+    }
   }
   
 }
