@@ -51,6 +51,11 @@ source("R/microdistancing_change.R")
 source("R/macrodistancing_change.R")
 # -- figure to Mediaflux / Freya
 
+# ????. Run test seeking behaviour plots
+source("R/survey_analysis_slack.R")
+# -- figure to Mediaflux / Freya
+
+
 # Section B) Dependent on NNDSS data update:
 #source("R/check_linelist.R")
 #  produces notification date by state plots for the most recent 28 days
