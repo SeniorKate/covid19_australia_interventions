@@ -94,10 +94,10 @@ min_date
 #remove dubious confirmation dates (shouldn't be any here)
 linelist <- linelist %>% filter(date_confirmation >= "2020-01-23")
 
-#fix one off qld error
-linelist <- linelist %>% mutate(date_confirmation = case_when(
-  date_confirmation == "2023-05-06" ~ as_date("2023-04-06"),
-  TRUE ~ date_confirmation))
+# #fix one off qld error
+# linelist <- linelist %>% mutate(date_confirmation = case_when(
+#   date_confirmation == "2023-05-06" ~ as_date("2023-04-06"),
+#   TRUE ~ date_confirmation))
 
 #visual check
 plot_linelist_by_confirmation_date(linelist = linelist, date_cutoff = cutoff_date - months(1))
