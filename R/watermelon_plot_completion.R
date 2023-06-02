@@ -21,7 +21,7 @@ local_cases <- local_cases %>% left_join(new_infections_by_test_type,
 
 
 lc_long <- local_cases %>% na.omit() %>% 
-  filter(date_onset >(Sys.Date()-months(2))) %>%
+  filter(date_onset >(max(linelist$date_confirmation) - days(180))) %>%
   filter(completion_probability > 0.1) %>%
   select(-acquired_in_state) %>%
   mutate(projected_count = count/completion_probability) %>%
@@ -57,6 +57,37 @@ lc_long <- lc_long %>%
   filter(!(type == "proj" & test_type %in% c("RAT","Total"))) #all test type are the same
 
 lc_long %>%
+  ggplot() +
+  geom_bar(
+    aes(
+      x = date_onset,
+      y = count,
+      fill = type
+    ),
+    stat = "identity"
+  ) +
+  geom_vline(
+    data = prob_line_95,
+    aes(
+      xintercept = date_onset
+    )
+  ) +
+  # geom_vline(
+  #   data = prob_line_90,
+  #   aes(
+  #     xintercept = date_onset
+  #   )
+  # ) +
+  facet_wrap(
+    facets = vars(state),
+    ncol = 2,
+    scales = "free_y"
+  )
+
+ggsave("outputs/figures/watermelon_completion_long.png", bg = 'white',height = 5,width = 9)
+
+
+lc_long %>% filter(date_onset >= (max(lc_long$date_onset) - days(60))) %>% 
   ggplot() +
   geom_bar(
     aes(

@@ -195,11 +195,20 @@ plot_linelist_by_confirmation_date(linelist = linelist)
 #drop the latest reporting day for some jurisdictions if incomplete 
 #typically this is SA due to data uploaded on extraction day
 linelist <- linelist %>% 
-  filter(date_confirmation < (max(linelist$date_confirmation)) | state != "QLD")
+  filter(date_confirmation < (max(linelist$date_confirmation)-1) | state != "QLD")
 
 plot_linelist_by_confirmation_date(linelist = linelist)
 #plot the confirmation plot again after all the fixes
 ggsave("outputs/figures/case_count_by_confirmation_post_processing.png", bg = 'white',height = 5,width = 9)
+
+plot_linelist_by_confirmation_date(linelist = linelist,
+                                   date_cutoff = max(linelist$date_confirmation) - days(180))
+#plot the confirmation plot for 6months
+ggsave("outputs/figures/case_count_by_confirmation_post_processing_6months.png", 
+       bg = 'white',
+       height = 5,
+       width = 9)
+
 #record the days of lag for each jurisdiction
 state_date_lag <- linelist %>% 
   group_by(state) %>% 

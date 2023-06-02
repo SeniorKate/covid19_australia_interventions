@@ -290,7 +290,7 @@ p <- ggplot(line_df) +
   ) +
   ylab("Estimate of percentage 'always' keeping 1.5m distance")+
   
-  scale_x_date(breaks = seq(ymd("2020-01-01"), ymd("2023-01-01"), by = "2 months"),
+  scale_x_date(breaks = seq(ymd("2020-01-01"), max(line_df$date), by = "2 months"),
                labels = scales::label_date_short(format = c("%Y", "%b")),
                expand = expansion(mult = c(0, 0.05)))
 
@@ -368,7 +368,7 @@ p <- ggplot(line_df) +
   ) +
   ylab("Estimate of percentage 'always' keeping 1.5m distance")+
   
-  scale_x_date(breaks = seq(ymd("2020-01-01"), ymd("2023-01-01"), by = "2 months"),
+  scale_x_date(breaks = seq(ymd("2020-01-01"), max(line_df$date), by = "2 months"),
                labels = scales::label_date_short(format = c("%Y", "%b")),
                expand = expansion(mult = c(0, 0.05)))
 
