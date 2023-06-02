@@ -94,6 +94,10 @@ min_date
 #remove dubious confirmation dates (shouldn't be any here)
 linelist <- linelist %>% filter(date_confirmation >= "2020-01-23")
 
+#fix future dates problem
+linelist <- linelist %>% filter(date_confirmation <= max(date_linelist))
+
+
 # #fix one off qld error
 # linelist <- linelist %>% mutate(date_confirmation = case_when(
 #   date_confirmation == "2023-05-06" ~ as_date("2023-04-06"),

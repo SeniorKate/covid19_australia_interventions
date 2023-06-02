@@ -5366,7 +5366,8 @@ get_vic_linelist <- function(file) {
 }
 
 #function to get summary form of Vic data
-get_vic_summary_count <- function(date = NULL) {
+get_vic_summary_count <- function(date = NULL,
+                                  new_format = TRUE) {
   #read files
   vic.files <- list.files("~/not_synced/vic/",pattern = "count", full.names = TRUE)
   #get dates
@@ -5382,17 +5383,30 @@ get_vic_summary_count <- function(date = NULL) {
   } else {
     vic.files <- vic.files[vic.dates == date]
   }
-
-  vic_state_count <- read_csv(vic.files) %>% 
-    rename("PCR" = "confirmed",
-           "RAT" = "probable", 
-           "date" = "date") %>% 
-    pivot_longer(cols =  c(PCR,RAT),
-                 names_to = "test_type", 
-                 values_to = "cases") %>% 
-    mutate(state = "VIC",
-           cases = replace_na(cases,0)) %>% 
-    filter(date >= as_date("2022-01-06"))
+  
+  if (new_format) {
+    vic_state_count <- read_csv(vic.files) %>% 
+      rename("cases" = "n",
+             "test_type" = "Classification", 
+             "date" = "DiagnosisDate") %>% 
+      mutate(state = "VIC",
+             test_type = case_when(
+               test_type == "Confirmed"  ~ "PCR",
+               test_type == "Probable" ~ "RAT"),
+             cases = replace_na(cases,0)) %>% 
+      filter(date >= as_date("2022-01-06"))
+  } else {
+    vic_state_count <- read_csv(vic.files) %>% 
+      rename("PCR" = "confirmed",
+             "RAT" = "probable", 
+             "date" = "date") %>% 
+      pivot_longer(cols =  c(PCR,RAT),
+                   names_to = "test_type", 
+                   values_to = "cases") %>% 
+      mutate(state = "VIC",
+             cases = replace_na(cases,0)) %>% 
+      filter(date >= as_date("2022-01-06"))
+  }
 }
 
 
@@ -5920,10 +5934,11 @@ reff_model_data <- function(
   
   # truncate mobility data to no later than the day before the linelist (needed
   # for modelling on historic linelists) and then get the most recent date
-  latest_mobility_date <- mobility_data %>%
-    filter(date < linelist_date) %>%
-    pull(date) %>%
-    max()
+  latest_mobility_date <- linelist_date 
+  # mobility_data %>%
+  #   filter(date < linelist_date) %>%
+  #   pull(date) %>%
+  #   max()
   
   # get linelist date and state information
   linelist_start_date <- min(linelist$date)
