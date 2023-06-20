@@ -195,7 +195,7 @@ plot_linelist_by_confirmation_date(linelist = linelist)
 #drop the latest reporting day for some jurisdictions if incomplete 
 #typically this is SA due to data uploaded on extraction day
 linelist <- linelist %>% 
-  filter(date_confirmation < (max(linelist$date_confirmation)-1) | state != "QLD")
+  filter(date_confirmation < (max(linelist$date_confirmation)) | state != "QLD")
 
 plot_linelist_by_confirmation_date(linelist = linelist)
 #plot the confirmation plot again after all the fixes
@@ -226,17 +226,27 @@ linelist %>% pull(date_confirmation) %>% range()
 #use NSW part of the linelist to get delay cdfs for different test modes
 
 #cut off date at the beginning of RAT reporting
-delay_to_consider_date_cutoff <- as_date("2022-01-06")
+# delay_to_consider_date_cutoff <- as_date("2022-01-06")
+# latest_symptom_survey_cutoff <- as_date("2023-03-21")
+# 
+# 
+# RAT_cdf <- get_notification_delay_cdf(linelist = linelist %>% 
+#                                         filter(date_confirmation >= delay_to_consider_date_cutoff,
+#                                                date_onset <= latest_symptom_survey_cutoff,
+#                                                test_type == "RAT"),
+#                                       use_nsw_delay = TRUE)
+# 
+# PCR_cdf <- get_notification_delay_cdf(linelist = linelist %>% 
+#                                         filter(date_confirmation >= delay_to_consider_date_cutoff,
+#                                                date_onset <= latest_symptom_survey_cutoff,
+#                                                test_type == "PCR"),
+#                                       use_nsw_delay = TRUE)
+# 
+# saveRDS(RAT_cdf,"outputs/presaved_RAT_cdf.RDS")
+# saveRDS(PCR_cdf,"outputs/presaved_PCR_cdf.RDS")
 
-RAT_cdf <- get_notification_delay_cdf(linelist = linelist %>% 
-                                        filter(date_confirmation >= delay_to_consider_date_cutoff,
-                                               test_type == "RAT"),
-                                      use_nsw_delay = TRUE)
-
-PCR_cdf <- get_notification_delay_cdf(linelist = linelist %>% 
-                                        filter(date_confirmation >= delay_to_consider_date_cutoff,
-                                               test_type == "PCR"),
-                                      use_nsw_delay = TRUE)
+RAT_cdf <- readRDS("outputs/presaved_RAT_cdf.RDS")
+PCR_cdf <- readRDS("outputs/presaved_PCR_cdf.RDS")
 
 #impute onsets separately and then put together, not the most efficient approach
 #but works better with legacy code
