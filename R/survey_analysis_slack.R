@@ -521,7 +521,7 @@ p <- ggplot(plot_prop_one_core_state) +
   
   # and titles
   ggtitle(
-    label = paste0("Percentage of respondents who reported at least one n\core symptom")
+    label = paste0("Percentage of respondents who reported at least one \ncore symptom")
   ) +
   ylab(paste0("Estimate of percentage reporting symptoms"))
 
@@ -1147,7 +1147,7 @@ p_at_least_one_core_states <- ggplot(plot_one_core_state) +
   
   # and titles
   ggtitle(
-    label = paste0("Percentage of respondents who reported seeking a test due n\to symptoms, given at least one core symptom")
+    label = paste0("Percentage of respondents who reported seeking a test due \nto symptoms, given at least one core symptom")
   ) +
   ylab(paste0("Estimate of percentage tested \n due to symptoms"))
 
@@ -1200,7 +1200,7 @@ p_at_least_one_sym_states <- ggplot(plot_one_sym_state) +
   
   # and titles
   ggtitle(
-    label = paste0("Percentage of respondents who reported seeking a test due n\to symptoms, given at least one symptom")
+    label = paste0("Percentage of respondents who reported seeking a test due \nto symptoms, given at least one symptom")
   ) +
   ylab(paste0("Estimate of percentage tested \n due to symptoms"))
 
