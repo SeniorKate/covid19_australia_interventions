@@ -7,7 +7,7 @@ set.seed(2020-04-29)
 source("R/functions.R")
 
 # sync up the case data
-sync_nndss()
+#sync_nndss()
 
 # overhead arg for TP constant boolean choice
 const_TP <- TRUE
@@ -180,7 +180,8 @@ reff_plotting(
 )
 
 
-# most recent month no nowcast
+# most recent month no nowcast 
+#at the moment hack change of setting the scale_x_date(limits = as.Date(c('2023-05-12, 2023-06-12'))) in plot_trend function to  fixed x-axis issues
 reff_plotting(
   refitted_model,
   dir = "outputs",
@@ -193,6 +194,7 @@ reff_plotting(
 
 
 # most recent six months no nowcast
+#at the moment hack change of setting the scale_x_date(limits = as.Date(c('2022-12-12', '2023-06-12'))) in plot_trend function to  fixed x-axis issues
 reff_plotting(
   refitted_model,
   dir = "outputs",

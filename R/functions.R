@@ -1543,6 +1543,7 @@ plot_trend <- function(
     multistate = FALSE,
     hline_at = 1,
     ylim = c(0, 6),
+    #xlim = c(NA, max_data_date),
     ybreaks = NULL,
     intervention_at = interventions(),
     projection_at = NA,
@@ -1680,7 +1681,8 @@ plot_trend <- function(
     
     coord_cartesian(ylim = ylim) +
     y_scale +
-    scale_x_date(date_breaks = date_breaks, date_minor_breaks = date_minor_breaks, date_labels = date_labels) +
+    scale_x_date(date_breaks = date_breaks, date_minor_breaks = date_minor_breaks, date_labels = date_labels, limits = as.Date(c('2022-12-12', '2023-06-12'))) +
+                 #limits = as.Date(c('2022-12-05', '2023-06-05'))) +
     scale_alpha(range = c(0, 0.5)) +
     scale_fill_manual(values = c("Nowcast" = base_colour)) +
     
@@ -5367,7 +5369,7 @@ get_vic_linelist <- function(file) {
 
 #function to get summary form of Vic data
 get_vic_summary_count <- function(date = NULL,
-                                  new_format = TRUE) {
+                                  new_format = FALSE) {
   #read files
   vic.files <- list.files("~/not_synced/vic/",pattern = "count", full.names = TRUE)
   #get dates
@@ -7063,6 +7065,7 @@ reff_plotting <- function(
   # rugplot of case counts
   case_data <- local_cases_long %>%
     filter(date >= min_date) %>%
+    #filter(date <= max_data_date) %>% 
     mutate(
       type = "Nowcast",
       height = 1
@@ -10067,7 +10070,7 @@ fit_survey_gam <- function(
   m <- mgcv::gam(
     cbind(count, I(respondents - count)) ~ s(date_num) + intervention_stage,
     select = TRUE,
-    family = stats::binomial,optimizer = c('outer',"optim")
+    family = stats::binomial,optimizer = c('outer',"newton")
   )
   
   
