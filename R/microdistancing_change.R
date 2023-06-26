@@ -233,7 +233,7 @@ p <- ggplot(line_df) +
   
   coord_cartesian(ylim = c(0, 100)) +
   scale_y_continuous(position = "right") +
-  scale_x_date(date_breaks = "2 month", date_labels = "%e/%m") +
+  scale_x_date(date_breaks = "3 month", date_labels = "%e/%m") +
   scale_alpha(range = c(0, 0.5)) +
   scale_fill_manual(values = c("Nowcast" = base_colour)) +
   
