@@ -57,7 +57,7 @@ intervention_steps <- interventions(
   end_dates = TRUE#,
   # exclude_after = "2021-10-21"
 ) %>%
-  filter(date <= max(data$location_change_trends$date),
+  filter(date <= max(data$contacts$date),
          date >=min(data$contacts$date)) %>%
   # no survey data from during the TAS lockdown in these dates so not possible
   # to fit effect of this lockdown, and therefore excluding this intervention
@@ -72,10 +72,10 @@ intervention_steps <- interventions(
   do(
     tibble(
       date = seq(min(data$location_change_trends$date), 
-                 max(data$location_change_trends$date), 
+                 max(data$contacts$date), 
                  by = 1),
       intervention_effect = as.numeric(seq(min(data$location_change_trends$date), 
-                                           max(data$location_change_trends$date), 
+                                           max(data$contacts$date), 
                                            by = 1) >= .$date)
     )
   ) %>%
@@ -90,7 +90,7 @@ intervention_steps <- interventions(
 
 
 
-df_fit <- data$location_change_trends %>%
+df_fit <- data$contacts %>%
   select(state,date) %>% 
   left_join(
     public_holidays,
@@ -134,7 +134,7 @@ df_fit <- data$location_change_trends %>%
   )
 
 
-df_pred <- data$location_change_trends %>% 
+df_pred <- data$contacts %>% 
   select(state,date) %>% 
   left_join(
     public_holidays,
