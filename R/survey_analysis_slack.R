@@ -101,7 +101,7 @@ parse_doh_survey_for_test_seeking <- function(filename) {
                         right = FALSE)
      )
   
-  } else if ((min(survey_doh$date) >= as.Date("2022-02-08")) & (min(survey_doh$date) < as.Date("2023-02-20"))) {
+  } else if ((min(survey_doh$date) >= as.Date("2022-02-08")) & (min(survey_doh$date) < as.Date("2023-06-20"))) {
   
 
     # Select columns of interest
