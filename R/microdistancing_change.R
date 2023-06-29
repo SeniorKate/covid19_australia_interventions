@@ -233,7 +233,7 @@ p <- ggplot(line_df) +
   
   coord_cartesian(ylim = c(0, 100)) +
   scale_y_continuous(position = "right") +
-  scale_x_date(date_breaks = "2 month", date_labels = "%e/%m") +
+  scale_x_date(date_breaks = "3 month", date_labels = "%e/%m") +
   scale_alpha(range = c(0, 0.5)) +
   scale_fill_manual(values = c("Nowcast" = base_colour)) +
   
@@ -290,7 +290,7 @@ p <- ggplot(line_df) +
   ) +
   ylab("Estimate of percentage 'always' keeping 1.5m distance")+
   
-  scale_x_date(breaks = seq(ymd("2020-01-01"), max(line_df$date), by = "2 months"),
+  scale_x_date(breaks = seq(ymd("2020-01-01"), max(line_df$date), by = "3 months"),
                labels = scales::label_date_short(format = c("%Y", "%b")),
                expand = expansion(mult = c(0, 0.05)))
 
@@ -311,7 +311,7 @@ p <- ggplot(line_df) +
   
   coord_cartesian(ylim = c(0, 100)) +
   scale_y_continuous(position = "right") +
-  scale_x_date(date_breaks = "2 month", date_labels = "%e/%m") +
+  scale_x_date(date_breaks = "3 month", date_labels = "%e/%m") +
   scale_alpha(range = c(0, 0.5)) +
   scale_fill_manual(values = c("Nowcast" = base_colour)) +
   
@@ -368,7 +368,7 @@ p <- ggplot(line_df) +
   ) +
   ylab("Estimate of percentage 'always' keeping 1.5m distance")+
   
-  scale_x_date(breaks = seq(ymd("2020-01-01"), max(line_df$date), by = "2 months"),
+  scale_x_date(breaks = seq(ymd("2020-01-01"), max(line_df$date), by = "3 months"),
                labels = scales::label_date_short(format = c("%Y", "%b")),
                expand = expansion(mult = c(0, 0.05)))
 
