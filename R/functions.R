@@ -6041,36 +6041,39 @@ reff_model_data <- function(
     CAR_matrix <- ascertainment_estimates$CAR_matrix
     
     detection_prob_mat <- completion_prob_mat * CAR_matrix
+    
+    #make PCR-only CAR matrix by applying a flat reduction in CAR for PCR-only states
+    if (!is.null(PCR_only_states)) {
+      #make a matrix to apply reduction, after an arbitrary time point
+      PCR_CAR_reduction_mat <- CAR_matrix
+      PCR_CAR_reduction_mat[] <- 1
+      #current no matching between reduction factor and state
+      # need to look over this to be more flexible in the
+      PCR_CAR_reduction_mat[full_dates >= as_date("2022-01-01"),
+                            PCR_only] <- matrix(PCR_only_CAR_reduction_factor,
+                                                nrow = sum(full_dates >= as_date("2022-01-01")),
+                                                ncol = 2,
+                                                byrow = TRUE)
+      
+      PCR_only_CAR_mat <- CAR_matrix * PCR_CAR_reduction_mat
+      #recalculate detection prob mat for imputing # of infection
+      detection_prob_mat <- completion_prob_mat * PCR_only_CAR_mat
+      #nullify non PCR-only states in the output CAR matrix to avoid confusion
+      PCR_only_CAR_mat[,!PCR_only] <- NA
+    } else {
+      PCR_only_CAR_mat <- CAR_matrix
+      PCR_only_CAR_mat[] <- NA
+    }
+    
   } else {
     #if not using CAR adjustment, only account for imperfect detection from
     #reporting delay
     #make a perfect ascertainment matrix to document this choice
     CAR_matrix <- completion_prob_mat
     CAR_matrix[] <- 1
-    detection_prob_mat <- completion_prob_mat
-  }
-  
-  #make PCR-only CAR matrix by applying a flat reduction in CAR for PCR-only states
-  if (!is.null(PCR_only_states)) {
-    #make a matrix to apply reduction, after an arbitrary time point
-    PCR_CAR_reduction_mat <- CAR_matrix
-    PCR_CAR_reduction_mat[] <- 1
-    #current no matching between reduction factor and state
-    # need to look over this to be more flexible in the
-    PCR_CAR_reduction_mat[full_dates >= as_date("2022-01-01"),
-                          PCR_only] <- matrix(PCR_only_CAR_reduction_factor,
-                                           nrow = sum(full_dates >= as_date("2022-01-01")),
-                                           ncol = 2,
-                                           byrow = TRUE)
-    
-    PCR_only_CAR_mat <- CAR_matrix * PCR_CAR_reduction_mat
-    #recalculate detection prob mat for imputing # of infection
-    detection_prob_mat <- completion_prob_mat * PCR_only_CAR_mat
-    #nullify non PCR-only states in the output CAR matrix to avoid confusion
-    PCR_only_CAR_mat[,!PCR_only] <- NA
-  } else {
     PCR_only_CAR_mat <- CAR_matrix
     PCR_only_CAR_mat[] <- NA
+    detection_prob_mat <- completion_prob_mat
   }
   
 
