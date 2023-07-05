@@ -84,6 +84,12 @@ linelist <- linelist %>%
 # remove dubious SA onset dates that are dated to same as confirmation dates
 linelist$date_onset[(linelist$state == "SA" & linelist$date_onset >= as_date("2022-02-27"))] <- NA
 
+#cut off impossible early RATs that could cause date misalignment
+linelist <- linelist %>% 
+  filter(
+    !(test_type == "RAT" & 
+            date_confirmation < as_date("2021-01-01"))
+         )
 
 #check min & max dates
 

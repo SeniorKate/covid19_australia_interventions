@@ -5908,19 +5908,14 @@ reff_model_data <- function(
   ascertainment_level_for_immunity = NULL,
   impute_infection_with_CAR = FALSE,
   PCR_only_states = NULL,
-  state_specific_right_truncation = TRUE
+  state_specific_right_truncation = TRUE,
+  PCR_only_CAR_reduction_factor = NULL
 ) {
   
   linelist_date <- max(linelist_raw$date_linelist)
   
   # load modelled google mobility data 
   mobility_data <- readRDS("outputs/google_change_trends.RDS")
-  
-  #back out RAT data for states to run PCR only
-  if (!is.null(PCR_only_states)) {
-    linelist_raw <- linelist_raw %>% 
-      filter(!(state %in% PCR_only_states & test_type == "RAT"))
-  }
   
   # compute delays from symptom onset to detection for each state over time if null
   if (is.null(notification_delay_cdf)) {
@@ -5973,6 +5968,16 @@ reff_model_data <- function(
   date_nums <- seq_len(n_dates + n_extra)
   dates_project <- earliest_date + date_nums - 1
   n_dates_project <- n_date_nums <- length(date_nums)
+  
+  #note which states are PCR-only
+  PCR_only <- rep(FALSE,length(states))
+  #back out RAT data for states to run PCR only
+  if (!is.null(PCR_only_states)) {
+    
+    PCR_only[which(states %in% PCR_only_states)] <- TRUE
+    linelist <- linelist %>% 
+      filter(!(state %in% PCR_only_states & test_type == "RAT"))
+  }
   
   # build a vector of inducing points, regularly spaced over time but with one on
   # the most recent date
@@ -6042,6 +6047,30 @@ reff_model_data <- function(
     CAR_matrix[] <- 1
     detection_prob_mat <- completion_prob_mat
   }
+  
+  #make PCR-only CAR matrix by applying a flat reduction in CAR for PCR-only states
+  if (!is.null(PCR_only_states)) {
+    #make a matrix to apply reduction, after an arbitrary time point
+    PCR_CAR_reduction_mat <- CAR_matrix
+    PCR_CAR_reduction_mat[] <- 1
+    #current no matching between reduction factor and state
+    # need to look over this to be more flexible in the
+    PCR_CAR_reduction_mat[full_dates >= as_date("2022-01-01"),
+                          PCR_only] <- matrix(PCR_only_CAR_reduction_factor,
+                                           nrow = sum(full_dates >= as_date("2022-01-01")),
+                                           ncol = 2,
+                                           byrow = TRUE)
+    
+    PCR_only_CAR_mat <- CAR_matrix * PCR_CAR_reduction_mat
+    #recalculate detection prob mat for imputing # of infection
+    detection_prob_mat <- completion_prob_mat * PCR_only_CAR_mat
+    #nullify non PCR-only states in the output CAR matrix to avoid confusion
+    PCR_only_CAR_mat[,!PCR_only] <- NA
+  } else {
+    PCR_only_CAR_mat <- CAR_matrix
+    PCR_only_CAR_mat[] <- NA
+  }
+  
 
   
   # those infected in the state
@@ -6159,6 +6188,7 @@ reff_model_data <- function(
   short_completion_prob_mat <- completion_prob_mat[dates_select,]
   short_CAR_matrix <- CAR_matrix[dates_select,]
   short_valid_mat <- valid_mat[dates_select,]
+  short_PCR_only_CAR_mat <- PCR_only_CAR_mat[dates_select,]
   
   #load immunity effect
   vaccine_effect_timeseries <- readRDS(immunity_effect_path)
@@ -6288,7 +6318,9 @@ reff_model_data <- function(
     n_inducing =  n_inducing,
     vaccine_effect_matrix = vaccine_effect_matrix,
     CAR_mat = short_CAR_matrix,
-    dow_effect = short_dow_effect
+    dow_effect = short_dow_effect,
+    state_is_PCR_only = PCR_only,
+    PCR_only_CAR_mat = short_PCR_only_CAR_mat
   )
   
 }
@@ -7607,7 +7639,9 @@ write_local_cases <- function(model_data, dir = "outputs", suffix = NULL) {
     count = as.vector(model_data$local$cases_infectious)*as.vector(model_data$dow_effect),
     infections = round(as.vector(model_data$local$infectiousness)*as.vector(model_data$dow_effect)),
     acquired_in_state = as.vector(model_data$local$cases),
-    dow_effect = as.vector(model_data$dow_effect)
+    dow_effect = as.vector(model_data$dow_effect),
+    PCR_only = rep(model_data$state_is_PCR_only, each = model_data$n_dates),
+    PCR_only_CAR = as.vector(model_data$PCR_only_CAR_mat)
   )%>% write.csv(
     file.path(dir,paste0("local_cases_input_", suffix, format(model_data$dates$linelist, "%Y-%m-%d"), ".csv")),
     row.names = FALSE
@@ -13994,7 +14028,7 @@ get_CAR_matrix <- function(dates = full_dates,
                            states = states,
                            last_perfection_ascertainment_date = as_date("2021-11-01"),
                            last_PCR_available_date = as_date("2022-12-31"),
-                           PCR_exception_state = "NSW",
+                           PCR_exception_state = NULL,
                            linelist = linelist,
                            completion_prob_mat = completion_prob_mat,
                            detection_cutoff = detection_cutoff) {
