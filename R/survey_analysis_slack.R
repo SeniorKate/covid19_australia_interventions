@@ -33,8 +33,77 @@ parse_doh_survey_for_test_seeking <- function(filename) {
       date = as.Date(StartDate, format = "%Y%m%d")
     )
   
-  if (min(survey_doh$date) >= as.Date("2022-02-08")) {
-    
+ if (min(survey_doh$date) >= as.Date("2023-06-20")) { # start of flu questions being included in survey
+   
+   # Select columns of interest
+   survey_doh %>%
+     select(
+       wave,
+       state,
+       age = S1,
+       gender = S2,
+       postcode = Q37,
+       exp_cough = Q228_1,
+       exp_fever = Q228_2,
+       exp_breathing = Q228_3,
+       exp_throat = Q228_4,
+       exp_tired = Q228_5,
+       exp_joint_ache = Q228_6,
+       exp_headache = Q228_7,
+       exp_nose = Q228_8,
+       exp_taste_smell = Q228_9,
+       exp_nausea = Q228_10,
+       exp_chills = Q228_11,
+       exp_none = Q228_99,
+       test = Q229,
+       test_symp = Q230_1,
+       test_contact = Q230_2,
+       test_job = Q230_3,
+       test_other = Q230_98,
+       pcr_test = Q231_1,
+       rat_test = Q231_2,
+       dontknow_test = Q231_3,
+       pcr_result = Q231a,
+       rat_result = Q231b,
+       rat_report = Q232,
+       date) %>%
+     mutate_at(
+       vars(starts_with("exp_")),
+       ~quoted_to_yesno(.)
+     ) %>%
+     mutate_at(
+       vars(starts_with("test_")),
+       ~quoted_to_yesno(.)
+     ) %>%
+     mutate_at(
+       vars(pcr_test, rat_test, dontknow_test),
+       ~quoted_to_yesno(.)
+     ) %>%
+     mutate_at(
+       vars(pcr_test, rat_test, dontknow_test),
+       ~replace_na(.,"No")
+     ) %>%
+     # Responses different once flu added in - set test so it refer to yes - influenza as no and joint tests to yes
+
+       mutate(
+         test = case_when(
+           test == "Yes – COVID-19" ~ "Yes", 
+           test == "Yes – Both COVID-19 and Influenza" ~ "Yes", 
+           test == "Yes – Influenza" ~ "No", 
+           grepl("No", test) ~ "No",
+          test == "Prefer not to say" ~ "No", 
+          TRUE ~ test),
+  
+       age_groups = cut(as.numeric(age), 
+                        breaks = c(0, 18, 30, 60, Inf), 
+                        labels = c("0-17", "18-29", "30-59", "60+"),
+                        include.lowest = TRUE, 
+                        right = FALSE)
+     )
+  
+  } else if ((min(survey_doh$date) >= as.Date("2022-02-08")) & (min(survey_doh$date) < as.Date("2023-06-20"))) {
+  
+
     # Select columns of interest
     survey_doh %>%
       select(
@@ -164,7 +233,7 @@ parse_doh_survey_for_test_seeking <- function(filename) {
                          right = FALSE)
       )
     
-  } else{
+  } else {
     
     # Select columns of interest
     survey_doh %>%
@@ -358,6 +427,7 @@ prop_sym_breakdown_week_state_roll <- function(data) {
 
 prop_sym_breakdown_week_state_one_core_roll <- prop_sym_breakdown_week_state_roll(prop_sym_breakdown_week_state_one_core)
 
+
 prop_sym_breakdown_week_state_one_sym_roll <- prop_sym_breakdown_week_state_roll(prop_sym_breakdown_week_state_one_sym)
 
 
@@ -463,7 +533,7 @@ p <- ggplot(plot_prop_one_sym_state) +
         strip.text = element_text(hjust = 0, face = "bold"),
         axis.title.y.right = element_text(vjust = 0.5, angle = 90),
         panel.spacing = unit(1.2, "lines"),
-        axis.text.x = element_text(size = 9)
+        axis.text.x = element_text(size = 8)
   ) +
   
   # and titles
@@ -516,12 +586,12 @@ p <- ggplot(plot_prop_one_core_state) +
         strip.text = element_text(hjust = 0, face = "bold"),
         axis.title.y.right = element_text(vjust = 0.5, angle = 90),
         panel.spacing = unit(1.2, "lines"),
-        axis.text.x = element_text(size = 9)
+        axis.text.x = element_text(size = 8)
   ) +
   
   # and titles
   ggtitle(
-    label = paste0("Percentage of respondents who reported at least one core symptom")
+    label = paste0("Percentage of respondents who reported at least one \ncore symptom")
   ) +
   ylab(paste0("Estimate of percentage reporting symptoms"))
 
@@ -1142,12 +1212,12 @@ p_at_least_one_core_states <- ggplot(plot_one_core_state) +
         strip.text = element_text(hjust = 0, face = "bold"),
         axis.title.y.right = element_text(vjust = 0.5, angle = 90),
         panel.spacing = unit(1.2, "lines"),
-        axis.text.x = element_text(size = 9)
+        axis.text.x = element_text(size = 8)
   ) +
   
   # and titles
   ggtitle(
-    label = paste0("Percentage of respondents who reported seeking a test due to symptoms, \n given at least one core symptom")
+    label = paste0("Percentage of respondents who reported seeking a test due \nto symptoms, given at least one core symptom")
   ) +
   ylab(paste0("Estimate of percentage tested \n due to symptoms"))
 
@@ -1195,12 +1265,12 @@ p_at_least_one_sym_states <- ggplot(plot_one_sym_state) +
         strip.text = element_text(hjust = 0, face = "bold"),
         axis.title.y.right = element_text(vjust = 0.5, angle = 90),
         panel.spacing = unit(1.2, "lines"),
-        axis.text.x = element_text(size = 9)
+        axis.text.x = element_text(size = 8)
   ) +
   
   # and titles
   ggtitle(
-    label = paste0("Percentage of respondents who reported seeking a test due to symptoms, \n given at least one symptom")
+    label = paste0("Percentage of respondents who reported seeking a test due \nto symptoms, given at least one symptom")
   ) +
   ylab(paste0("Estimate of percentage tested \n due to symptoms"))
 
@@ -1257,7 +1327,7 @@ p <- ggplot(one_sym_comb) +
         strip.text = element_text(hjust = 0, face = "bold"),
         axis.title.y.right = element_text(vjust = 0.5, angle = 90),
         panel.spacing = unit(1.2, "lines"),
-        axis.text.x = element_text(size = 9)
+        axis.text.x = element_text(size = 8)
   ) +
   
   # and titles
@@ -1316,7 +1386,7 @@ p <- ggplot(one_core_comb) +
         strip.text = element_text(hjust = 0, face = "bold"),
         axis.title.y.right = element_text(vjust = 0.5, angle = 90),
         panel.spacing = unit(1.2, "lines"),
-        axis.text.x = element_text(size = 9)
+        axis.text.x = element_text(size = 8)
   ) +
   
   # and titles
@@ -1388,7 +1458,7 @@ cases %>%
         strip.text = element_text(hjust = 0, face = "bold"),
         axis.title.y.right = element_text(vjust = 0.5, angle = 90),
         panel.spacing = unit(1.2, "lines"),
-        axis.text.x = element_text(size = 9)
+        axis.text.x = element_text(size = 8)
   ) +
   
   # and titles
@@ -1446,7 +1516,7 @@ cases %>%
         strip.text = element_text(hjust = 0, face = "bold"),
         axis.title.y.right = element_text(vjust = 0.5, angle = 90),
         panel.spacing = unit(1.2, "lines"),
-        axis.text.x = element_text(size = 9)
+        axis.text.x = element_text(size = 8)
   ) +
   
   # and titles
@@ -1631,7 +1701,7 @@ p <- plot_one_core_state_type %>%
         strip.text = element_text(hjust = 0, face = "bold"),
         axis.title.y.right = element_text(vjust = 0.5, angle = 90),
         panel.spacing = unit(1.2, "lines"),
-        axis.text.x = element_text(size = 9)
+        axis.text.x = element_text(size = 8)
   ) +
   
   # and titles
@@ -1686,7 +1756,7 @@ p <- plot_one_sym_state_type %>%
         strip.text = element_text(hjust = 0, face = "bold"),
         axis.title.y.right = element_text(vjust = 0.5, angle = 90),
         panel.spacing = unit(1.2, "lines"),
-        axis.text.x = element_text(size = 9)
+        axis.text.x = element_text(size = 8)
   ) +
   
   # and titles
@@ -1851,7 +1921,7 @@ p <- plot_one_core_state_type %>%
         strip.text = element_text(hjust = 0, face = "bold"),
         axis.title.y.right = element_text(vjust = 0.5, angle = 90),
         panel.spacing = unit(1.2, "lines"),
-        axis.text.x = element_text(size = 9)
+        axis.text.x = element_text(size = 8)
   ) +
   
   # and titles
@@ -1906,7 +1976,7 @@ p <- plot_one_sym_state_type %>%
         strip.text = element_text(hjust = 0, face = "bold"),
         axis.title.y.right = element_text(vjust = 0.5, angle = 90),
         panel.spacing = unit(1.2, "lines"),
-        axis.text.x = element_text(size = 9)
+        axis.text.x = element_text(size = 8)
   ) +
   
   # and titles
@@ -2029,7 +2099,7 @@ results %>%
         strip.text = element_text(hjust = 0, face = "bold"),
         axis.title.y.right = element_text(vjust = 0.5, angle = 90),
         panel.spacing = unit(1.2, "lines"),
-        axis.text.x = element_text(size = 10)
+        axis.text.x = element_text(size = 8)
   ) +
   ylab(paste0("Estimate of percentage tested \n due to symptoms"))
 save_ggplot(paste0("at_least_one_sym_states_central_smoothed.png"))
@@ -2076,7 +2146,7 @@ results %>%
         strip.text = element_text(hjust = 0, face = "bold"),
         axis.title.y.right = element_text(vjust = 0.5, angle = 90),
         panel.spacing = unit(1.2, "lines"),
-        axis.text.x = element_text(size = 10)
+        axis.text.x = element_text(size = 8)
   ) +
   ylab(paste0("Estimate of percentage tested \n due to symptoms"))
 save_ggplot(paste0("at_least_one_sym_states_central_smoothed_national.png"))
@@ -2117,7 +2187,7 @@ results %>%
         strip.text = element_text(hjust = 0, face = "bold"),
         axis.title.y.right = element_text(vjust = 0.5, angle = 90),
         panel.spacing = unit(1.2, "lines"),
-        axis.text.x = element_text(size = 10)
+        axis.text.x = element_text(size = 8)
   ) +
   ylab(paste0("Estimate of percentage tested \n due to symptoms"))
 save_ggplot(paste0("at_least_one_sym_states_central_smoothed_national_RAT_only.png"))
@@ -2175,7 +2245,7 @@ results %>%
         strip.text = element_text(hjust = 0, face = "bold"),
         axis.title.y.right = element_text(vjust = 0.5, angle = 90),
         panel.spacing = unit(1.2, "lines"),
-        axis.text.x = element_text(size = 10)
+        axis.text.x = element_text(size = 8)
   ) +
   ylab(paste0("Estimate of percentage tested \n due to symptoms"))
 save_ggplot(paste0("at_least_one_sym_states_central_smoothed_PCR_only.png"))
@@ -2232,7 +2302,7 @@ results %>%
         strip.text = element_text(hjust = 0, face = "bold"),
         axis.title.y.right = element_text(vjust = 0.5, angle = 90),
         panel.spacing = unit(1.2, "lines"),
-        axis.text.x = element_text(size = 10)
+        axis.text.x = element_text(size = 8)
   ) +
   ylab(paste0("Estimate of percentage tested \n due to symptoms"))
 save_ggplot(paste0("at_least_one_sym_states_central_smoothed_RAT_only.png"))
