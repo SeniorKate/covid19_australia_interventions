@@ -295,7 +295,7 @@ data <- reff_model_data(linelist_raw = linelist,
                         impute_infection_with_CAR = TRUE,
                         state_specific_right_truncation = TRUE,
                         PCR_only_states = c("NSW",'VIC'),
-                        PCR_only_CAR_reduction_factor = c(0.5,0.25))
+                        PCR_only_CAR_reduction_factor = c(0.5,0.27))
 #data[["valid_mat"]][c(919,920),"QLD"] <- FALSE
 saveRDS(data, "outputs/pre_loaded_reff_data.RDS")
 #data <- readRDS("outputs/pre_loaded_reff_data.RDS")
