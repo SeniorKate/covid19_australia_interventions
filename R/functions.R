@@ -7180,7 +7180,7 @@ reff_plotting <- function(
                                      xmax = fitted_model$data$dates$latest_mobility,
                                      ymin = -Inf,
                                      ymax = Inf,
-                                     state = fitted_model$data$state),
+                                     state = fitted_model$data$states),
                        fill = grey(0.5), alpha = 0.1, 
                        inherit.aes = FALSE)
     
@@ -7357,7 +7357,7 @@ reff_plotting <- function(
                                      xmax = fitted_model$data$dates$latest_mobility,
                                      ymin = -Inf,
                                      ymax = Inf,
-                                     state = fitted_model$data$state),
+                                     state = fitted_model$data$states),
                        fill = grey(0.5), alpha = 0.1, 
                        inherit.aes = FALSE)
     
@@ -7389,7 +7389,7 @@ reff_plotting <- function(
                                      xmax = fitted_model$data$dates$latest_mobility,
                                      ymin = -Inf,
                                      ymax = Inf,
-                                     state = fitted_model$data$state),
+                                     state = fitted_model$data$states),
                        fill = grey(0.5), alpha = 0.1, 
                        inherit.aes = FALSE)
     
@@ -7423,7 +7423,7 @@ reff_plotting <- function(
                                      xmax = fitted_model$data$dates$latest_mobility,
                                      ymin = -Inf,
                                      ymax = Inf,
-                                     state = fitted_model$data$state),
+                                     state = fitted_model$data$states),
                        fill = grey(0.5), alpha = 0.1, 
                        inherit.aes = FALSE)
     
