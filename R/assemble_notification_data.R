@@ -73,6 +73,28 @@ saturdays_to_fix <- nsw_wrong_RATs_period[wday(nsw_wrong_RATs_period) == 7]
 #lovely long if else statement to sort out the problematic cases
 for (week_iter in seq_along(mondays_to_fix)) {
   
+#Victorian PCR reporting down on 9th and partially down on 10th of July. Cases reported on 12th of July instead
+   if (mondays_to_fix[week_iter] == "2023-07-10") {
+    #shift all PCR cases to Wednesday
+    linelist <- linelist %>% 
+      mutate(date_confirmation = case_when(
+        date_confirmation %in% c(sundays_to_fix[week_iter],
+                                 mondays_to_fix[week_iter]) & 
+          test_type == "PCR" & 
+          state == "VIC" ~ as_date("2023-07-12"),
+        TRUE ~ date_confirmation
+      )
+      )
+    #shift PCR dates back in place via disaggregation    
+    linelist <- stagger_dates_in_linelist(linelist = linelist,
+                                          state_select = "VIC",
+                                          test_type = "PCR",
+                                          dates_to = c(sundays_to_fix[week_iter],
+                                                       mondays_to_fix[week_iter]),
+                                          date_from = wednesdays_to_fix[week_iter], 
+                                          use_delay_cdf = FALSE)
+    
+  }
   if (mondays_to_fix[week_iter] == "2023-07-03") {
     #missing most RAT cases from the prior week - minor counts on Tues-Fri, 
     #nothing on weekend and then rest appear to be dumped on Monday. PCR appears fine
@@ -225,6 +247,7 @@ for (week_iter in seq_along(mondays_to_fix)) {
 }}}
 
 #truncate for jurisdictions with incomplete reporting days (only PCR or RAT)
+#NOTE NT cases are now so low that there may actually be 0 cases of one type. Visually check the NT before running this. 
 linelist <- linelist %>% 
   group_by(date_confirmation,state) %>% 
   mutate(type_count = length(unique(test_type))) %>% 
