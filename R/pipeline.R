@@ -73,7 +73,20 @@ linelist_full <- load_linelist(use_vic = FALSE,
 #read in the last 6 months only updates
 linelist <- load_linelist(use_vic = FALSE, use_nsw = FALSE) 
 #cutoff date
-cutoff_date <- linelist %>% pull(date_confirmation) %>% min()
+
+#NNDSS has somehow been giving us incomplete days worth of cases at the start of the weekly (six month updates) linelists
+#calculate number of cases on each day in both linelists and find the oldest day where both linelists match to use as the cutoff date
+#because of NSW being loaded from different data there may not be many matching days. If this is the case, exclude NSW from the summaries
+min_ll_date <- linelist %>% pull(date_confirmation) %>% min()
+
+ll_full_summary <- linelist_full %>% filter(linelist_full$date_confirmation >= min_ll_date) %>% count(date_confirmation)
+ll_summary <- linelist %>% count(date_confirmation)
+
+ll_matches <- semi_join(ll_summary, ll_full_summary)
+cutoff_date <- min(ll_matches$date_confirmation)
+
+#filter six month update by cutoff date
+linelist <- linelist %>% filter(linelist$date_confirmation >= cutoff_date)
 
 #join updated linelist with older one
 linelist <- linelist %>% 
