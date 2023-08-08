@@ -6050,7 +6050,7 @@ reff_model_data <- function(
       PCR_CAR_reduction_mat[full_dates >= as_date("2022-01-01"),
                             PCR_only] <- matrix(PCR_only_CAR_reduction_factor,
                                                 nrow = sum(full_dates >= as_date("2022-01-01")),
-                                                ncol = 2,
+                                                ncol = 1,
                                                 byrow = TRUE)
       
       PCR_only_CAR_mat <- CAR_matrix * PCR_CAR_reduction_mat
@@ -14029,8 +14029,8 @@ impute_many_onsets <- function(
 # function to get CAR time point estimates, smooth it, and turn into matrix
 get_CAR_matrix <- function(dates = full_dates, 
                            states = states,
-                           last_perfection_ascertainment_date = as_date("2021-11-01"),
-                           last_PCR_available_date = as_date("2022-12-31"),
+                           last_perfection_ascertainment_date = as_date("2021-12-07"),
+                           last_PCR_available_date = as_date("2024-12-31"),
                            PCR_exception_state = NULL,
                            linelist = linelist,
                            completion_prob_mat = completion_prob_mat,
@@ -14122,13 +14122,21 @@ get_CAR_matrix <- function(dates = full_dates,
     #remove conditional on symptom column since it's linearly scaled from infection
     CAR_smooth <- CAR_smooth %>% select(-test_prob_given_symptom)
     
-    #hack in 1s for Delta period
+    #hack in 0.75 for Delta period
     CAR_smooth <- CAR_smooth %>% 
       mutate(test_prob_given_infection = 
                case_when(
-                 date <= last_perfection_ascertainment_date ~ 1,
+                 date <= last_perfection_ascertainment_date ~ 0.75,
                  TRUE ~ test_prob_given_infection)
              )
+   
+    #Add quick drop off in Dec 2021 
+    CAR_smooth <- CAR_smooth %>% 
+      mutate(test_prob_given_infection = 
+               case_when(
+                 date == as.Date("2021-12-14") ~ 0.33,
+                 TRUE ~ test_prob_given_infection)
+      )
     
     #interpolate NAs and repeat forward last survey result
     CAR_smooth <- CAR_smooth %>%
