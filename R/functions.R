@@ -14125,13 +14125,21 @@ get_CAR_matrix <- function(dates = full_dates,
     #remove conditional on symptom column since it's linearly scaled from infection
     CAR_smooth <- CAR_smooth %>% select(-test_prob_given_symptom)
     
-    #hack in 1s for Delta period
+    #hack in 0.75 for Delta period
     CAR_smooth <- CAR_smooth %>% 
       mutate(test_prob_given_infection = 
                case_when(
                  date <= last_perfection_ascertainment_date ~ 0.75,
                  TRUE ~ test_prob_given_infection)
              )
+   
+    #Add quick drop off in Dec 2021 
+    CAR_smooth <- CAR_smooth %>% 
+      mutate(test_prob_given_infection = 
+               case_when(
+                 date == as.Date("2021-12-14") ~ 0.33,
+                 TRUE ~ test_prob_given_infection)
+      )
     
     CAR_smooth <- CAR_smooth %>% 
       mutate(test_prob_given_infection = 
