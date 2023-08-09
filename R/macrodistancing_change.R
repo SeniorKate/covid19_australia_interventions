@@ -57,7 +57,7 @@ intervention_steps <- interventions(
   end_dates = TRUE#,
   # exclude_after = "2021-10-21"
 ) %>%
-  filter(date <= max(data$contacts$date),
+  filter(date <= max(data$location_change_trends$date),
          date >=min(data$contacts$date)) %>%
   # no survey data from during the TAS lockdown in these dates so not possible
   # to fit effect of this lockdown, and therefore excluding this intervention
@@ -72,10 +72,10 @@ intervention_steps <- interventions(
   do(
     tibble(
       date = seq(min(data$location_change_trends$date), 
-                 max(data$contacts$date), 
+                 max(data$location_change_trends$date), 
                  by = 1),
       intervention_effect = as.numeric(seq(min(data$location_change_trends$date), 
-                                           max(data$contacts$date), 
+                                           max(data$location_change_trends$date), 
                                            by = 1) >= .$date)
     )
   ) %>%
@@ -90,7 +90,7 @@ intervention_steps <- interventions(
 
 
 
-df_fit <- data$contacts %>%
+df_fit <- data$location_change_trends %>%
   select(state,date) %>% 
   left_join(
     public_holidays,
@@ -134,7 +134,7 @@ df_fit <- data$contacts %>%
   )
 
 
-df_pred <- data$contacts %>% 
+df_pred <- data$location_change_trends %>% 
   select(state,date) %>% 
   left_join(
     public_holidays,
@@ -274,8 +274,6 @@ survey_points <- data$contacts %>%
 # save these fits for plotting later
 saveRDS(survey_points, "outputs/macro_data_fit.RDS")
 #survey_points <- readRDS("outputs/macro_data_fit.RDS")
-
-
 
 #determine cutoff date
 left.cutoff.date <- max(data$contacts$date) - years(2)
@@ -517,7 +515,8 @@ p <- plot_trend(use_simulations = FALSE,
   #             colour = grey(0.5,0.2),
   #             fill = grey(0.5,0.1)) +
   # rug marks for holidays
-  geom_rug(
+  
+geom_rug(
     aes(date),
     data = holiday_lines %>%
       filter(date >= max(data$contacts$date) - months(6)),
