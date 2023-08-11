@@ -55,6 +55,12 @@ linelist <- replace_linelist_bits_with_summary(linelist,
 #check if ACT is properly joined
 plot_linelist_by_confirmation_date(linelist = linelist, date_cutoff = "2022-01-01")
 
+
+#make watermelon style checking plot
+plot_linelist_by_confirmation_date(linelist = linelist)
+ggsave("outputs/figures/case_count_by_confirmation.png", bg = 'white',height = 5,width = 9)
+
+
 #check that there is still a data spike for Victoria on the 22nd of July 2023. If so, run this section of code. 
 plot_linelist_by_confirmation_date(linelist = linelist) #modify to cover longer period as date gets further away
 #remove cases with data confirmation as the 22nd of July for Victoria
@@ -68,11 +74,6 @@ vic_cases_22_07_2023 <- readRDS("outputs/vic_cases_22_07_2023.rds")
 linelist <- rbind(linelist, vic_cases_22_07_2023)
 
 
-#make watermelon style checking plot
-plot_linelist_by_confirmation_date(linelist = linelist)
-ggsave("outputs/figures/case_count_by_confirmation.png", bg = 'white',height = 5,width = 9)
-
-
 #impute correct confirmation dates for NSW RAT weekend cases dumped on Monday and other issues with reporting delays
 nsw_wrong_RATs_period <- seq.Date(as.Date("2023-02-25"),max(linelist$date_confirmation),by = "day")
 
@@ -81,6 +82,7 @@ mondays_to_fix <- nsw_wrong_RATs_period[wday(nsw_wrong_RATs_period) == 2]
 tuesdays_to_fix <- nsw_wrong_RATs_period[wday(nsw_wrong_RATs_period) == 3]
 sundays_to_fix <- nsw_wrong_RATs_period[wday(nsw_wrong_RATs_period) == 1]
 saturdays_to_fix <- nsw_wrong_RATs_period[wday(nsw_wrong_RATs_period) == 7]
+wednesdays_to_fix <- nsw_wrong_RATs_period[wday(nsw_wrong_RATs_period) == 4]
 
 #lovely long if else statement to sort out the problematic cases
 for (week_iter in seq_along(mondays_to_fix)) {
@@ -356,11 +358,17 @@ data <- reff_model_data(linelist_raw = linelist,
                         notification_delay_cdf = NULL,
                         impute_infection_with_CAR = TRUE,
                         state_specific_right_truncation = TRUE,
-                        PCR_only_states = c("NSW",'VIC'),
-                        PCR_only_CAR_reduction_factor = c(0.5,0.27))
+                        PCR_only_states = c('VIC'),
+                        PCR_only_CAR_reduction_factor = c(0.27))
 #data[["valid_mat"]][c(919,920),"QLD"] <- FALSE
 saveRDS(data, "outputs/pre_loaded_reff_data.RDS")
 #data <- readRDS("outputs/pre_loaded_reff_data.RDS")
+
+#remove PCR cases from Victoria for watermelon plot so as not to confuse James
+linelist <- linelist %>% filter( 
+  !(test_type == "RAT" & 
+      state == "VIC")
+)
 
 source("R/watermelon_plot_completion.R")
 
