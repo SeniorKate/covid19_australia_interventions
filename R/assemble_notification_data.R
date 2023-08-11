@@ -374,6 +374,10 @@ source("R/watermelon_plot_completion.R")
 
 write_local_cases(data)
 
+#run script to check completion probability delay is acceptable
+#at the moment need to manually change date of most recent linelist and add in new ones every week
+
+source("R/explore_reporting.R")
 
 #make PCR only version - in dev
 
