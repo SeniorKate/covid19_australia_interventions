@@ -11,7 +11,7 @@ plot_linelist_by_confirmation_date(linelist = linelist)
 #load all summary format data
 summary_data <- get_summary_data(states = "VIC")
 
-#visually check for issues
+#visually check for issues - at the moment there is a spike of cases on the 22nd July 2023 that we need to check for
 summary_data %>% filter(date>=(max(summary_data$date)-days(30))) %>% 
   ggplot(aes(x = date, y = cases, fill = test_type)) + 
   geom_col(position = "dodge") + 
@@ -61,7 +61,20 @@ plot_linelist_by_confirmation_date(linelist = linelist)
 ggsave("outputs/figures/case_count_by_confirmation.png", bg = 'white',height = 5,width = 9)
 
 
-#impute correct confirmation dates for NSW RAT weekend cases dumped on Monday
+#check that there is still a data spike for Victoria on the 22nd of July 2023. If so, run this section of code. 
+plot_linelist_by_confirmation_date(linelist = linelist) #modify to cover longer period as date gets further away
+#remove cases with data confirmation as the 22nd of July for Victoria
+linelist <- linelist %>% 
+  filter(
+    !(state == "VIC" & 
+        date_confirmation == as_date("2023-07-22"))
+  )
+#add in the correct cases (distributed every which where)
+vic_cases_22_07_2023 <- readRDS("outputs/vic_cases_22_07_2023.rds")
+linelist <- rbind(linelist, vic_cases_22_07_2023)
+
+
+#impute correct confirmation dates for NSW RAT weekend cases dumped on Monday and other issues with reporting delays
 nsw_wrong_RATs_period <- seq.Date(as.Date("2023-02-25"),max(linelist$date_confirmation),by = "day")
 
 
@@ -69,9 +82,78 @@ mondays_to_fix <- nsw_wrong_RATs_period[wday(nsw_wrong_RATs_period) == 2]
 tuesdays_to_fix <- nsw_wrong_RATs_period[wday(nsw_wrong_RATs_period) == 3]
 sundays_to_fix <- nsw_wrong_RATs_period[wday(nsw_wrong_RATs_period) == 1]
 saturdays_to_fix <- nsw_wrong_RATs_period[wday(nsw_wrong_RATs_period) == 7]
+wednesdays_to_fix <- nsw_wrong_RATs_period[wday(nsw_wrong_RATs_period) == 4]
 
+#lovely long if else statement to sort out the problematic cases
 for (week_iter in seq_along(mondays_to_fix)) {
   
+#Victorian PCR reporting down on 9th and partially down on 10th of July. Cases reported on 12th of July instead
+   if (mondays_to_fix[week_iter] == "2023-07-10") {
+    #shift all PCR cases to Wednesday
+    linelist <- linelist %>% 
+      mutate(date_confirmation = case_when(
+        date_confirmation %in% c(sundays_to_fix[week_iter],
+                                 mondays_to_fix[week_iter]) & 
+          test_type == "PCR" & 
+          state == "VIC" ~ as_date("2023-07-12"),
+        TRUE ~ date_confirmation
+      )
+      )
+    #shift PCR dates back in place via disaggregation    
+    linelist <- stagger_dates_in_linelist(linelist = linelist,
+                                          state_select = "VIC",
+                                          test_type = "PCR",
+                                          dates_to = c(sundays_to_fix[week_iter],
+                                                       mondays_to_fix[week_iter]),
+                                          date_from = wednesdays_to_fix[week_iter], 
+                                          use_delay_cdf = FALSE)
+    
+  }
+  if (mondays_to_fix[week_iter] == "2023-07-03") {
+    #missing most RAT cases from the prior week - minor counts on Tues-Fri, 
+    #nothing on weekend and then rest appear to be dumped on Monday. PCR appears fine
+    #shift all RAT dates to Monday
+    linelist <- linelist %>% 
+      mutate(date_confirmation = case_when(
+        date_confirmation %in% c(as_date("2023-06-27"),
+                                 as_date("2023-06-28"),
+                                 as_date("2023-06-29"),
+                                 as_date("2023-06-30")) & 
+          test_type == "RAT" & 
+          state == "NSW" ~ mondays_to_fix[week_iter],
+        TRUE ~ date_confirmation
+      )
+      )
+    #shift PCR dates back in place via disaggregation
+    linelist <- stagger_dates_in_linelist(linelist = linelist,
+                                          state_select = "NSW",
+                                          test_type = "RAT",
+                                          dates_to = c(as_date("2023-06-27"),
+                                                       as_date("2023-06-28"),
+                                                       as_date("2023-06-29"),
+                                                       as_date("2023-06-30"),
+                                                       as_date("2023-07-01"),
+                                                       as_date("2023-07-02")),
+                                          date_from = mondays_to_fix[week_iter])
+    
+  }
+  
+  else {
+    
+    #deal with NSW Labour day exception where all RAT tests for Sat-Mon were reported on Tuesday.
+    #PCR appears to have been reported on Mon and is therefore fine to use normal function  
+    if (mondays_to_fix[week_iter] == "2023-06-12") {
+      #missing full RAT from Sat-Sun,so take cases from Tuesday instead
+      #disaggregate RAT dates
+      linelist <- stagger_dates_in_linelist(linelist = linelist,
+                                            state_select = "NSW",
+                                            test_type = "RAT",
+                                            dates_to =   c(saturdays_to_fix[week_iter],
+                                                           sundays_to_fix[week_iter],
+                                                           mondays_to_fix[week_iter]),
+                                            date_from = tuesdays_to_fix[week_iter])
+    }  
+    else {
   #deal with easter long weekend exception
   if (mondays_to_fix[week_iter] == "2023-04-10") {
     #missing full RAT and partial PCR data from Good Friday to Easter Monday
@@ -176,28 +258,10 @@ for (week_iter in seq_along(mondays_to_fix)) {
     }
   }
   
-}
-
-#deal with NSW Labour day exception where all RAT tests for Sat-Mon were reported on Tuesday.
-#PCR appears to have been reported on Mon and is therefore fine to use normal function  
-for (week_iter in seq_along(mondays_to_fix)) {  
-  
-  if (mondays_to_fix[week_iter] == "2023-06-12") {
-    #missing full RAT from Sat-Sun,so take cases from Tuesday instead
-    #disaggregate RAT dates
-    linelist <- stagger_dates_in_linelist(linelist = linelist,
-                                          state_select = "NSW",
-                                          test_type = "RAT",
-                                          dates_to =   c(saturdays_to_fix[week_iter],
-                                                         sundays_to_fix[week_iter],
-                                                         mondays_to_fix[week_iter]),
-                                          date_from = tuesdays_to_fix[week_iter])
-  }
-}
-
-
+}}}
 
 #truncate for jurisdictions with incomplete reporting days (only PCR or RAT)
+#NOTE NT cases are now so low that there may actually be 0 cases of one type. Visually check the NT before running this. 
 linelist <- linelist %>% 
   group_by(date_confirmation,state) %>% 
   mutate(type_count = length(unique(test_type))) %>% 
@@ -294,16 +358,26 @@ data <- reff_model_data(linelist_raw = linelist,
                         notification_delay_cdf = NULL,
                         impute_infection_with_CAR = TRUE,
                         state_specific_right_truncation = TRUE,
-                        PCR_only_states = c("NSW",'VIC'),
-                        PCR_only_CAR_reduction_factor = c(0.5,0.27))
+                        PCR_only_states = c('VIC'),
+                        PCR_only_CAR_reduction_factor = c(0.27))
 #data[["valid_mat"]][c(919,920),"QLD"] <- FALSE
 saveRDS(data, "outputs/pre_loaded_reff_data.RDS")
 #data <- readRDS("outputs/pre_loaded_reff_data.RDS")
+
+#remove PCR cases from Victoria for watermelon plot so as not to confuse James
+linelist <- linelist %>% filter( 
+  !(test_type == "RAT" & 
+      state == "VIC")
+)
 
 source("R/watermelon_plot_completion.R")
 
 write_local_cases(data)
 
+#run script to check completion probability delay is acceptable
+#at the moment need to manually change date of most recent linelist and add in new ones every week
+
+source("R/explore_reporting.R")
 
 #make PCR only version - in dev
 

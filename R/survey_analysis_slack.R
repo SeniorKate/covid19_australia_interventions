@@ -87,6 +87,7 @@ parse_doh_survey_for_test_seeking <- function(filename) {
 
        mutate(
          test = case_when(
+           test == "Yes - COVID-19" ~ "Yes",
            test == "Yes – COVID-19" ~ "Yes", 
            test == "Yes – Both COVID-19 and Influenza" ~ "Yes", 
            test == "Yes – Influenza" ~ "No", 
