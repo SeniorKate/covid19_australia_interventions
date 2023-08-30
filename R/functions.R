@@ -4766,7 +4766,8 @@ get_nndss_linelist <- function(
                  state_of_acquisition,
                  state_of_residence,
                  interstate_import_cvsi,
-                 test_type
+                 test_type,
+                 symptoms_reported = CV_SYMPTOMS_REPORTED
                )
       
   }  else {
@@ -4782,11 +4783,19 @@ get_nndss_linelist <- function(
         postcode_of_residence,
         state_of_acquisition,
         state_of_residence,
-        interstate_import_cvsi
+        interstate_import_cvsi,
+        symptoms_reported = CV_SYMPTOMS_REPORTED
       )
   }
-  
-  
+    
+linelist <- linelist %>% 
+  mutate(
+    symptoms_reported = case_when(
+    symptoms_reported == "1" ~ "Yes",
+    symptoms_reported == "1" ~ "Yes",
+    symptoms_reported == "1" ~ "Yes",
+    TRUE ~ NA)
+    )
   
 linelist <- linelist %>%
     mutate(
