@@ -21,8 +21,9 @@ data <- reff_model_data(linelist_raw = linelist,
                         start_date = as_date("2021-06-01"),
                         immunity_effect_path = "outputs/combined_effect_full.RDS",
                         ascertainment_level_for_immunity = 0.5,
-                        PCR_only_states = NULL,
-                        state_specific_right_truncation = TRUE)
+                        impute_infection_with_CAR = FALSE,
+                        state_specific_right_truncation = TRUE,
+                        PCR_only_states = c('VIC'))
                         
 
 #check data date
@@ -64,8 +65,6 @@ OD_0 <- c(apply(OD_0[[1]],2:3,mean))
 OC_0 <- fitted_model$greta_arrays$distancing_effect$OC_0
 
 infectious_days <- infectious_period(gi_cdf)
-
-
 
 
 #get TP params 
