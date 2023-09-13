@@ -91,6 +91,8 @@ parse_doh_survey_for_test_seeking <- function(filename) {
            test == "Yes – COVID-19" ~ "Yes", 
            test == "Yes – Both COVID-19 and Influenza" ~ "Yes", 
            test == "Yes – Influenza" ~ "No", 
+           test == "7" ~ "No", 
+           test == "8" ~ "Yes",
            grepl("No", test) ~ "No",
           test == "Prefer not to say" ~ "No", 
           TRUE ~ test),
@@ -2318,7 +2320,11 @@ results %>%
 #### P(reported positive RAT test|tested positive on RAT) = n(reported positive RAT test AND tested positive on RAT) / n(tested positive on RAT) ####
 # Due to symptoms only
 
-report_positive_rat_week <- survey_data %>%
+report_positive_rat_week <- survey_data %>% #filter out states that no longer have rat reporting pipelines after it gets switched off
+  filter(
+    !(state == "VIC" & date > "2023-07-14")) %>%
+  #filter (
+   # !(state == "QLD" & date > "2023-09-14")) %>%
   mutate(rat_result = case_when( 
     grepl("positive", rat_result) ~ "RAT Positive", 
     grepl("negative", rat_result) ~ "RAT Negative", 
@@ -2564,7 +2570,7 @@ report_positive_rat_weekly_data_state <- function(data) {
   
 }
 
-plot_report_positive_rat_state_roll <- report_positive_rat_weekly_data_state(report_positive_rat_week_state_roll) %>% filter(state %in% c("NSW", "VIC"))
+plot_report_positive_rat_state_roll <- report_positive_rat_weekly_data_state(report_positive_rat_week_state_roll) %>% filter(state %in% c("QLD", "NSW", "VIC"))
 
 p <- ggplot(plot_report_positive_rat_state_roll) +
   # add calculated proportions converted to percentages
@@ -2616,7 +2622,7 @@ p <- ggplot(plot_report_positive_rat_state_roll) +
   ylab(paste0("Estimate of percentage reported result, \n given positive RAT"))
 
 p
-filepath <- file.path("outputs/figures/", "report_positive_rat_nsw_vic.png")
+filepath <- file.path("outputs/figures/", "report_positive_rat_vic_nsw_qld.png")
 ggsave(filepath,
        width = 10,
        height = 8,
