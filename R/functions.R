@@ -1681,8 +1681,7 @@ plot_trend <- function(
     
     coord_cartesian(ylim = ylim) +
     y_scale +
-    scale_x_date(date_breaks = date_breaks, date_minor_breaks = date_minor_breaks, date_labels = date_labels, limits = as.Date(c('2022-12-12', '2023-06-12'))) +
-                 #limits = as.Date(c('2022-12-05', '2023-06-05'))) +
+    scale_x_date(date_breaks = date_breaks, date_minor_breaks = date_minor_breaks, date_labels = date_labels) +
     scale_alpha(range = c(0, 0.5)) +
     scale_fill_manual(values = c("Nowcast" = base_colour)) +
     
@@ -6052,7 +6051,7 @@ reff_model_data <- function(
       PCR_CAR_reduction_mat[full_dates >= as_date("2022-01-01"),
                             PCR_only] <- matrix(PCR_only_CAR_reduction_factor,
                                                 nrow = sum(full_dates >= as_date("2022-01-01")),
-                                                ncol = 1,
+                                                ncol = 2,
                                                 byrow = TRUE)
       
       PCR_only_CAR_mat <- CAR_matrix * PCR_CAR_reduction_mat
