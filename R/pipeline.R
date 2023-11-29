@@ -83,7 +83,7 @@ ll_full_summary <- linelist_full %>% filter(linelist_full$date_confirmation >= m
 ll_summary <- linelist %>% count(date_confirmation)
 
 ll_matches <- semi_join(ll_summary, ll_full_summary)
-cutoff_date <- min(ll_matches$date_confirmation)
+cutoff_date <- max(ll_matches$date_confirmation)
 
 #filter six month update by cutoff date
 linelist <- linelist %>% filter(linelist$date_confirmation >= cutoff_date)
@@ -104,10 +104,11 @@ linelist <- linelist[,-12]
 linelist$date_onset[(linelist$state == "SA" & linelist$date_onset >= as_date("2022-02-27"))] <- NA
 
 #cut off impossible early RATs that could cause date misalignment
+#filtered by date TGA approved RATs in Australia
 linelist <- linelist %>% 
   filter(
     !(test_type == "RAT" & 
-            date_confirmation < as_date("2021-01-01"))
+            date_confirmation <= as_date("2021-11-01"))
          )
 
 #check min & max dates
