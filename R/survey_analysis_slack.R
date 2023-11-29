@@ -2323,8 +2323,14 @@ results %>%
 report_positive_rat_week <- survey_data %>% #filter out states that no longer have rat reporting pipelines after it gets switched off
   filter(
     !(state == "VIC" & date > "2023-07-14")) %>%
-  #filter (
-   # !(state == "QLD" & date > "2023-09-14")) %>%
+  filter (
+   !(state == "QLD" & date > "2023-09-14")) %>%
+  filter (
+    !(state == "NSW" & date > "2023-10-14")) %>%
+  filter (
+    !(state == "WA" & date > "2023-10-22")) %>%
+  filter (
+    !(state == "NT" & date > "2023-11-04")) %>%
   mutate(rat_result = case_when( 
     grepl("positive", rat_result) ~ "RAT Positive", 
     grepl("negative", rat_result) ~ "RAT Negative", 
@@ -2500,6 +2506,15 @@ report_positive_rat_week_state <- survey_data %>%
   select(-No) %>%
   mutate(proportion = count / respondents)
 
+#check if all states are present for last week of data and if not hack in 0 responses so we get an estimate for that week 
+sort(unique(report_positive_rat_week$wave_date))
+report_positive_rat_week_state$state[report_positive_rat_week_state$wave_date == latest_survey_date]
+
+#report_positive_rat_week_state <- rbind(report_positive_rat_week_state, list('2023-09-14', 'VIC', 0, 0, 0.0000000))
+#report_positive_rat_week_state <- rbind(report_positive_rat_week_state, list('2023-09-21', 'NT', 0, 0, 0.0000000))
+#report_positive_rat_week_state <- rbind(report_positive_rat_week_state, list('2023-09-21', 'TAS', 0, 0, 0.0000000))
+#report_positive_rat_week_state <- rbind(report_positive_rat_week_state, list('2023-09-21', 'WA', 0, 0, 0.0000000))
+
 # Aggregate over aggregate_over weeks
 report_positive_rat_week_state_rolling <- function(data) {
   
@@ -2523,7 +2538,8 @@ report_positive_rat_weekly_data_state <- function(data) {
     ungroup() %>%
     mutate(
       proportion = count / respondents,
-      percentage = proportion * 100
+      percentage = proportion * 100, 
+      fill = 0
     ) %>%
     rename(date = wave_date)
   
@@ -2570,7 +2586,14 @@ report_positive_rat_weekly_data_state <- function(data) {
   
 }
 
-plot_report_positive_rat_state_roll <- report_positive_rat_weekly_data_state(report_positive_rat_week_state_roll) %>% filter(state %in% c("QLD", "NSW", "VIC"))
+plot_report_positive_rat_state_roll <- report_positive_rat_weekly_data_state(report_positive_rat_week_state_roll) %>% filter(state %in% c("QLD", "NSW", "VIC", "WA"))
+
+#hack in fix for Victoria
+plot_report_positive_rat_state_roll$percentage[plot_report_positive_rat_state_roll$state == "VIC" & plot_report_positive_rat_state_roll$date >= "2023-09-28" & plot_report_positive_rat_state_roll$date <=  "2023-10-05"] <- 0.000000
+plot_report_positive_rat_state_roll$upper[plot_report_positive_rat_state_roll$state == "VIC" & plot_report_positive_rat_state_roll$date >= "2023-09-28" & plot_report_positive_rat_state_roll$date <=  "2023-10-05"] <- 50.000000
+
+plot_report_positive_rat_state_roll$percentage[plot_report_positive_rat_state_roll$state == "VIC" & plot_report_positive_rat_state_roll$date >= "2023-11-09" & plot_report_positive_rat_state_roll$date <= latest_survey_date] <- 0.000000
+plot_report_positive_rat_state_roll$upper[plot_report_positive_rat_state_roll$state == "VIC" & plot_report_positive_rat_state_roll$date >= "2023-11-09" & plot_report_positive_rat_state_roll$date <= latest_survey_date] <- 50.000000
 
 p <- ggplot(plot_report_positive_rat_state_roll) +
   # add calculated proportions converted to percentages
@@ -2601,7 +2624,7 @@ p <- ggplot(plot_report_positive_rat_state_roll) +
   
   coord_cartesian(ylim = c(0, 100)) +
   scale_y_continuous(position = "right") +
-  scale_x_date(date_breaks = "2 month", date_labels = "%b %y") +
+  scale_x_date(date_breaks = "3 month", date_labels = "%b%y") +
   scale_alpha(range = c(0, 0.5)) +
   facet_wrap(~state, ncol = 1, scales = "free") +
   cowplot::theme_cowplot() +
