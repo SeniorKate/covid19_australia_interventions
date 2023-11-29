@@ -276,7 +276,7 @@ saveRDS(survey_points, "outputs/macro_data_fit.RDS")
 #survey_points <- readRDS("outputs/macro_data_fit.RDS")
 
 #determine cutoff date
-left.cutoff.date <- max(data$contacts$date) - years(2)
+left.cutoff.date <- max(data$contacts$date) - years(4)
 
 survey_points <- survey_points %>% filter(wave_date >= left.cutoff.date)
 
@@ -323,7 +323,7 @@ plot_data <- list(
 macro_ticks_labels <- split_ticks_and_labels(
   data = survey_points %>% filter(wave_date >= left.cutoff.date) %>% pull(wave_date),
   tick_freq = "1 month",
-  label_freq = "4 months",
+  label_freq = "5 months",
   label_format = "%b%y",
   label_last = FALSE # for some reason this is having opposite effect, i.e. FALSE is labelling last (as desired)
 )
