@@ -1681,7 +1681,7 @@ plot_trend <- function(
     
     coord_cartesian(ylim = ylim) +
     y_scale +
-    scale_x_date(date_breaks = date_breaks, date_minor_breaks = date_minor_breaks, date_labels = date_labels) +
+    scale_x_date(date_breaks = date_breaks, date_minor_breaks = date_minor_breaks, date_labels = date_labels) + # limits = as.Date(c("2023-05-20", "2023-11-20"))) +
     scale_alpha(range = c(0, 0.5)) +
     scale_fill_manual(values = c("Nowcast" = base_colour)) +
     
@@ -1748,7 +1748,7 @@ plot_trend <- function(
                xmax = max(df$date),
                ymin = -Inf,
                ymax = Inf,
-               fill = grey(0.5), alpha = 0.1)
+               fill = grey(0.5), alpha = 0.2)
   }
   
   p    
@@ -6096,7 +6096,7 @@ reff_model_data <- function(
   
   # include day of the week glm to smooth weekly report artefact
   
-  #subset to omicron period
+  #subset to last five months or so (Nov 2023)
   week_count <- 1 + 1:length(seq(as_date("2023-05-29"), latest_date, by = 1)) %/% 7 
   dow <- lubridate::wday(seq(as_date("2023-05-29"), latest_date, by = 1))
   
@@ -6128,11 +6128,10 @@ reff_model_data <- function(
   
   #extract weekly estimates for each state and apply to entire date range
   #reduce it to start on a Monday
-  
   dow_effect_head <- dow_effect_head <- dow_effect[1:3,]
   dow_effect <- dow_effect[-c(1:3),]
   
-  pattern_rows <- dow_effect[1247:1253, ]
+  pattern_rows <- dow_effect[1247:1253,]
   
   # Initialize a new matrix
   dow_old <- matrix(NA, nrow = 1246, ncol = ncol(dow_effect))
@@ -6144,12 +6143,9 @@ reff_model_data <- function(
     dow_old[i, ] <- pattern_rows[pattern_index, ]
   }
   
-  
   dow_effect <- dow_effect[-c(1:1246),]
   
   dow_effect <- rbind(dow_effect_head, dow_old, dow_effect)
-  
-  #dow_effect <- dow_effect[-c(1:521),]
   
   # and those infected in any state, but infectious in this one
   local_cases_infectious <- linelist %>%
