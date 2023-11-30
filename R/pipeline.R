@@ -62,7 +62,6 @@ source("R/survey_analysis_slack.R")
 #  produces notification date by state plots for the most recent 28 days
 # optionally, produce NINDSS only watermelon plot
 
-
 # 5. Read in and process NINDSS data
 
 # NINDSS linelist 
@@ -83,7 +82,7 @@ ll_full_summary <- linelist_full %>% filter(linelist_full$date_confirmation >= m
 ll_summary <- linelist %>% count(date_confirmation)
 
 ll_matches <- semi_join(ll_summary, ll_full_summary)
-cutoff_date <- max(ll_matches$date_confirmation)
+cutoff_date <- min(ll_matches$date_confirmation)
 
 #filter six month update by cutoff date
 linelist <- linelist %>% filter(linelist$date_confirmation >= cutoff_date)
